@@ -154,11 +154,11 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
  * The name field is for easier debugging. A copy of the name is
  * (should be) made internally.
  */
-
+#define MAX_READERS 30
 struct rwlock {
-        char *rwlock_name;
-        // add what you need here
-        // (don't forget to mark things volatile as needed)
+        char *rwlk_name;
+        struct semaphore *rwlk_sem;
+        struct lock *rwlk_lock;
 };
 
 struct rwlock * rwlock_create(const char *);

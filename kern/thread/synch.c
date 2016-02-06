@@ -325,3 +325,80 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	//(void)cv;    // suppress warning until code gets written
 	//(void)lock;  // suppress warning until code gets written
 }
+
+
+// added by akannan4
+
+////////////////////////////////////////////////////////////
+//
+// Reader-Writer locks (using semaphores and locks)
+
+struct rwlock * rwlock_create(const char *name)
+{
+	struct rwlock *rw;
+
+	rw = kmalloc(sizeof(*rw));
+	if (rw == NULL) {
+		return NULL;
+	}
+
+	rw->rwlk_name = kstrdup(name);
+	if (rw->rwlk_name == NULL) {
+		kfree(rw);
+		return NULL;
+	}
+
+	rw->rwlk_sem = sem_create(rw->rwlk_name, MAX_READERS);
+	rw->rwlk_lock = lock_create(rw->rwlk_name);
+
+	return rw;
+ }
+
+ void rwlock_destroy(struct rwlock *rw) { 
+
+ 	KASSERT(rw != NULL);
+
+ 	sem_destroy(rw->rwlk_sem);
+	lock_destroy(rw->rwlk_lock);
+
+	kfree(rw->rwlk_name);
+	kfree(rw);
+
+ }
+
+ void rwlock_acquire_read(struct rwlock * rw) { 
+	KASSERT(rw != NULL);
+	KASSERT(curthread->t_in_interrupt == false);
+
+	lock_acquire(rw->rwlk_lock);
+	P(rw->rwlk_sem);
+	lock_release(rw->rwlk_lock);
+
+ }
+
+
+ void rwlock_release_read(struct rwlock * rw) { 
+ 	KASSERT(rw != NULL);
+ 	V(rw->rwlk_sem);
+	
+ }
+
+ void rwlock_acquire_write(struct rwlock * rw) { 
+ 	int i;
+	lock_acquire(rw->rwlk_lock);
+	for(i=0; i<MAX_READERS; i++){
+		P(rw->rwlk_sem);
+	}
+	lock_release(rw->rwlk_lock);
+	
+ }
+
+ void rwlock_release_write(struct rwlock * rw) { 
+ 	int i;
+	for(i=0; i<MAX_READERS; i++){
+		V(rw->rwlk_sem);
+	}
+	
+ }
+
+//end
