@@ -44,7 +44,23 @@
  * Called by the driver during initialization.
  */
 
+struct semaphore * male_semaphore;
+struct semaphore * female_semaphore;
+struct semaphore * match_semaphore;
+
+struct lock * male_lock;
+struct lock * female_lock;
+struct lock * match_lock;
+
 void whalemating_init() {
+	male_semaphore = sem_create("male semaphore", 0);
+	female_semaphore = sem_create("female sem", 0);
+	match_semaphore = sem_create("matchmaker semaphore", 0);
+
+	male_lock=lock_create("male lock");
+	female_lock=lock_create("female lock");
+	match_lock=lock_create("match lock");
+
 	return;
 }
 
@@ -54,6 +70,15 @@ void whalemating_init() {
 
 void
 whalemating_cleanup() {
+
+	sem_destroy(male_semaphore);
+	sem_destroy(female_semaphore);
+	sem_destroy(match_semaphore);
+
+	lock_destroy(male_lock);
+	lock_destroy(female_lock);
+	lock_destroy(match_lock);
+
 	return;
 }
 
@@ -65,6 +90,14 @@ male(uint32_t index)
 	 * Implement this function by calling male_start and male_end when
 	 * appropriate.
 	 */
+	 male_start(index);
+	 lock_acquire(male_lock);
+
+	 P(male_semaphore);	
+
+	 lock_release(male_lock);
+	 male_end(index);
+
 	return;
 }
 
@@ -76,6 +109,15 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
+
+	 female_start(index);
+	 lock_acquire(female_lock);
+
+	 P(female_semaphore);
+
+	 lock_release(female_lock);
+	 female_end(index);
+
 	return;
 }
 
@@ -87,5 +129,16 @@ matchmaker(uint32_t index)
 	 * Implement this function by calling matchmaker_start and matchmaker_end
 	 * when appropriate.
 	 */
+	 matchmaker_start(index);
+	 lock_acquire(match_lock);
+
+	 V(match_semaphore);
+	 V(male_semaphore);
+	 V(female_semaphore);
+	 P(match_semaphore);
+	 
+	 lock_release(match_lock);
+	 matchmaker_end(index);
+
 	return;
 }
