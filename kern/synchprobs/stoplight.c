@@ -72,9 +72,16 @@
 /*
  * Called by the driver during initialization.
  */
+struct lock* global; 
+struct lock* locks[4];
 
 void
 stoplight_init() {
+	global = lock_create("global");
+	locks[0]=lock_create("0");
+	locks[1]=lock_create("1");
+	locks[2]=lock_create("2");
+	locks[3]=lock_create("3");
 	return;
 }
 
@@ -83,7 +90,14 @@ stoplight_init() {
  */
 
 void stoplight_cleanup() {
+
+	lock_destroy(global);
+	lock_destroy(locks[0]);
+	lock_destroy(locks[1]);
+	lock_destroy(locks[2]);
+	lock_destroy(locks[3]);
 	return;
+
 }
 
 void
@@ -91,9 +105,17 @@ turnright(uint32_t direction, uint32_t index)
 {
 	(void)direction;
 	(void)index;
-	/*
-	 * Implement this function.
-	 */
+
+
+	//lock_acquire(global);
+	lock_acquire(locks[direction]);
+	inQuadrant(direction,index);
+	leaveIntersection(index);
+	lock_release(locks[direction]);
+	//lock_release(global);	
+	
+	 
+	
 	return;
 }
 void
@@ -101,9 +123,32 @@ gostraight(uint32_t direction, uint32_t index)
 {
 	(void)direction;
 	(void)index;
-	/*
-	 * Implement this function.
-	 */
+
+	int max,min;
+	if(direction>((direction+3)%4))
+	{
+		max=direction;
+		min=(direction+3)%4;
+	}	
+	else
+	{
+		min=direction;
+		max=(direction+3)%4;
+	}
+
+	//lock_acquire(global);
+	lock_acquire(locks[min]);
+	lock_acquire(locks[max]);
+	inQuadrant(direction,index);
+	inQuadrant((direction+3)%4,index);
+	leaveIntersection(index);
+	lock_release(locks[max]);
+	lock_release(locks[min]);
+	
+	//lock_release(global);
+	
+		
+	
 	return;
 }
 void
@@ -111,8 +156,72 @@ turnleft(uint32_t direction, uint32_t index)
 {
 	(void)direction;
 	(void)index;
-	/*
-	 * Implement this function.
-	 */
+	
+	//lock_acquire(global);
+	
+	
+	int i1,i2,i3;
+	i1=direction;
+	i2=(direction+3)%4;
+	i3=(direction+2)%4;
+	//lock_release(global);
+
+	int min,mid,max;
+
+	if(i1>i2 && i1>i3)
+	{
+		max=i1;
+		if(i2>i3)
+		{
+			mid=i2;
+			min=i3;
+		}	
+		else
+		{
+			mid=i3;
+			min=i2;
+		}	
+	}	
+	else if(i2>i1 && i2>i3)
+	{
+		max=i2;
+		if(i1>i3)
+		{
+			mid=i1;
+			min=i3;
+		}
+		else
+		{
+			mid=i3;
+			min=i1;
+		}	
+	}
+	else
+	{
+		max=i3;
+		if(i1>i2)
+		{
+			mid=i1;
+			min=i2;
+		}
+		else
+		{
+			mid=i2;
+			min=i1;
+		}	
+	}	
+
+	lock_acquire(locks[min]);
+	lock_acquire(locks[mid]);
+	lock_acquire(locks[max]);
+	inQuadrant(direction,index);
+	inQuadrant((direction+3)%4,index);
+	inQuadrant((direction+2)%4,index);
+	leaveIntersection(index);
+	lock_release(locks[max]);
+	lock_release(locks[mid]);
+	lock_release(locks[min]);
+
+
 	return;
 }
