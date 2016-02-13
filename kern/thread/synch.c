@@ -165,6 +165,7 @@ lock_create(const char *name)
 
 	spinlock_init(&lock->lk_lock);
 	lock->lk_status=false;
+	lock->thread=NULL;
 	// end 	
 	return lock;
 }
@@ -174,6 +175,7 @@ lock_destroy(struct lock *lock)
 {
 	KASSERT(lock != NULL);
 	KASSERT(lock->lk_status == false);
+	KASSERT(lock->thread == NULL);
 	// added by akannan4
 	spinlock_cleanup(&lock->lk_lock);
 	wchan_destroy(lock->lk_wchan);
@@ -211,7 +213,7 @@ lock_release(struct lock *lock)
 	spinlock_acquire(&lock->lk_lock);
 	
 	lock->lk_status=false;
-	lock->thread=false;
+	lock->thread=NULL;
 	KASSERT(lock->lk_status == false);
 	wchan_wakeone(lock->lk_wchan, &lock->lk_lock);
 
