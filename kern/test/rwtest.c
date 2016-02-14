@@ -34,7 +34,7 @@ rwlock_reader_thread(void *junk, unsigned long num)
 
 	n_reader_threads_accessing++;
 
-	kprintf("Reader thread %lu \n",num);
+	kprintf("Reader thread %lu starting\n",num);
 
 	// check if no writers have access and no more than MAX_READER threads are acessing critical section :)
 	if(n_writer_threads_accessing > 0 || n_reader_threads_accessing > MAX_READERS) {
@@ -42,6 +42,7 @@ rwlock_reader_thread(void *junk, unsigned long num)
 	}
 
 	n_reader_threads_accessing--;
+	kprintf("Reader thread %lu ending\n",num);
 
 	rwlock_release_read(testrwlock);
 
@@ -60,7 +61,7 @@ rwlock_writer_thread(void *junk, unsigned long num)
 
 	n_writer_threads_accessing++;
 
-	kprintf("Writer thread %lu \n",num);
+	kprintf("Writer thread %lu starting\n",num);
 
 	// check if I have exclusice access :)
 	if(n_reader_threads_accessing>0 || n_writer_threads_accessing > 1) {
@@ -68,6 +69,7 @@ rwlock_writer_thread(void *junk, unsigned long num)
 	}
 
 	n_writer_threads_accessing--;
+	kprintf("Writer thread %lu ending\n",num);
 
 	rwlock_release_write(testrwlock);
 	
