@@ -12,9 +12,9 @@
 #include <kern/secret.h>
 #include <spinlock.h>
 
- #define CREATELOOPS		8
- #define NREADERTHREADS      32
- #define NWRITERTHREADS      5
+#define CREATELOOPS		8
+#define NREADERTHREADS      32
+#define NWRITERTHREADS      5
 
 static struct semaphore *donesem = NULL;
 static struct rwlock *testrwlock = NULL;
@@ -78,7 +78,10 @@ rwlock_writer_thread(void *junk, unsigned long num)
 	return;
 }
 
-
+/*
+ * Use these stubs to test your reader-writer locks.
+ */
+ 
 int rwtest(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
@@ -129,6 +132,46 @@ int rwtest(int nargs, char **args) {
 		P(donesem);
 	}
 	success(test_status, SECRET, "rwt1");
+
+	return 0;
+}
+
+int rwtest2(int nargs, char **args) {
+	(void)nargs;
+	(void)args;
+
+	kprintf_n("rwt2 unimplemented\n");
+	success(FAIL, SECRET, "rwt2");
+
+	return 0;
+}
+
+int rwtest3(int nargs, char **args) {
+	(void)nargs;
+	(void)args;
+
+	kprintf_n("rwt3 unimplemented\n");
+	success(FAIL, SECRET, "rwt3");
+
+	return 0;
+}
+
+int rwtest4(int nargs, char **args) {
+	(void)nargs;
+	(void)args;
+
+	kprintf_n("rwt4 unimplemented\n");
+	success(FAIL, SECRET, "rwt4");
+
+	return 0;
+}
+
+int rwtest5(int nargs, char **args) {
+	(void)nargs;
+	(void)args;
+
+	kprintf_n("rwt5 unimplemented\n");
+	success(FAIL, SECRET, "rwt5");
 
 	return 0;
 }
