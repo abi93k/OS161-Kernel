@@ -13,3 +13,4 @@ build
 *.sh
 .DS_Store
 .tmux.conf
+.test161.conf
