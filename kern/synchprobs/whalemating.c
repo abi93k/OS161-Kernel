@@ -132,10 +132,10 @@ matchmaker(uint32_t index)
 	 matchmaker_start(index);
 	 lock_acquire(match_lock);
 
-	 V(match_semaphore);
+	 //V(match_semaphore);
 	 V(male_semaphore);
 	 V(female_semaphore);
-	 P(match_semaphore);
+	 //P(match_semaphore);
 	 
 	 lock_release(match_lock);
 	 matchmaker_end(index);
