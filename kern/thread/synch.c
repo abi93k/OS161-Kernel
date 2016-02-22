@@ -361,7 +361,8 @@ struct rwlock * rwlock_create(const char *name)
  void rwlock_destroy(struct rwlock *rw) { 
 
  	KASSERT(rw != NULL);
-
+ 	KASSERT(rw->rwlk_sem->sem_count == MAX_READERS);
+	
  	sem_destroy(rw->rwlk_sem);
 	lock_destroy(rw->rwlk_lock);
 
@@ -383,6 +384,7 @@ struct rwlock * rwlock_create(const char *name)
 
  void rwlock_release_read(struct rwlock * rw) { 
  	KASSERT(rw != NULL);
+ 	KASSERT(rw->rwlk_sem->sem_count < MAX_READERS);
  	V(rw->rwlk_sem);
 	
  }
@@ -399,6 +401,7 @@ struct rwlock * rwlock_create(const char *name)
 
  void rwlock_release_write(struct rwlock * rw) { 
  	int i;
+ 	KASSERT(rw->rwlk_sem->sem_count == 0);
 	for(i=0; i<MAX_READERS; i++){
 		V(rw->rwlk_sem);
 	}
