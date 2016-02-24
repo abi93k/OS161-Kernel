@@ -395,8 +395,7 @@ struct rwlock * rwlock_create(const char *name)
 	for(i=0; i<MAX_READERS; i++){
 		P(rw->rwlk_sem);
 	}
-	lock_release(rw->rwlk_lock);
-	
+	lock_release(rw->rwlk_lock);	
  }
 
  void rwlock_release_write(struct rwlock * rw) { 
