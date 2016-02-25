@@ -7,7 +7,7 @@
 
 struct fdesc
 {
-	char name[NAME_MAX]; /* NAME_MAX is define in limits.h */
+	char name[NAME_MAX]; /* NAME_MAX is defined in limits.h */
 	struct vnode *vn;
 
 	int flags;
