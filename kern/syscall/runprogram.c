@@ -45,12 +45,20 @@
 #include <syscall.h>
 #include <test.h>
 
+#include <synch.h>
+#include <file_syscall.h>
+
+
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
+
+
+
+
 int
 runprogram(char *progname)
 {
@@ -96,6 +104,72 @@ runprogram(char *progname)
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
+
+	/* Initialize console */
+	char console_path[5];
+
+	/* STDIN */
+	strcpy(console_path,"con:");
+	struct vnode *STDIN;
+
+	result = vfs_open(console_path, O_RDONLY, 0664, &STDIN);
+	if (result) {
+		return result;
+	}
+
+	struct fdesc *STDIN_fd = kmalloc(sizeof(struct fdesc));
+
+	strcpy(STDIN_fd->name,"STDIN");
+	STDIN_fd->lock = lock_create("STDIN");
+	STDIN_fd->vn =STDIN;
+	STDIN_fd->flags = O_RDONLY;
+	STDIN_fd->offset = 0;
+	STDIN_fd->reference_count = 1;
+
+	curthread->t_fdtable[0] = STDIN_fd;
+
+
+	/* STDOUT */
+	strcpy(console_path,"con:");
+	struct vnode *STDOUT;
+
+	result = vfs_open(console_path, O_WRONLY, 0664, &STDOUT);
+	if (result) {
+		return result;
+	}
+
+	struct fdesc *STDOUT_fd = kmalloc(sizeof(struct fdesc));
+
+	strcpy(STDOUT_fd->name,"STDOUT");
+	STDOUT_fd->lock = lock_create("STDOUT");
+	STDOUT_fd->vn =STDOUT;
+	STDOUT_fd->flags = O_WRONLY;
+	STDOUT_fd->offset = 0;
+	STDOUT_fd->reference_count = 1;
+
+	curthread->t_fdtable[1] = STDOUT_fd;
+
+	/* STDERR */
+	strcpy(console_path,"con:");
+	struct vnode *STDERR;
+
+	result = vfs_open(console_path, O_WRONLY, 0664, &STDERR);
+	if (result) {
+		return result;
+	}
+
+	struct fdesc *STDERR_fd = kmalloc(sizeof(struct fdesc));
+
+	strcpy(STDERR_fd->name,"STDERR");
+	STDERR_fd->lock = lock_create("STDERR");
+	STDERR_fd->vn =STDERR;
+	STDERR_fd->flags = O_WRONLY;
+	STDERR_fd->offset = 0;
+	STDERR_fd->reference_count = 1;
+
+	curthread->t_fdtable[2] = STDERR_fd;
+
+	/* End initializing console */
 
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,

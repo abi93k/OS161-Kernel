@@ -39,6 +39,7 @@
 #include <array.h>
 #include <spinlock.h>
 #include <threadlist.h>
+#include <limits.h>
 
 struct cpu;
 
@@ -106,6 +107,8 @@ struct thread {
 	 */
 
 	/* add more here as needed */
+	struct fdesc* t_fdtable[OPEN_MAX];
+
 };
 
 /*
