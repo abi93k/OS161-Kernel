@@ -58,7 +58,8 @@ sys_read(int fd, void* buf, size_t buflen)
 
 
 ssize_t
-sys_write(int fd, const void *buf, size_t nbytes) {
+sys_write(int fd, const void *buf, size_t nbytes) 
+{
 	struct iovec iov;
 	struct uio u;
 
@@ -106,6 +107,32 @@ lseek(int fd, off_t pos, int whence) {
 }
 
 int
-__getcwd(char *buf, size_t buflen) {
-	/* TODO */
+sys__getcwd(char *buf, size_t buflen) 
+{
+	struct iovec iov;
+	struct uio u;
+
+	if (buf == NULL)
+		return EFAULT; 						//address space pointed to by buf is invalid.
+
+
+	/* from loadelf.c */
+	iov.iov_ubase = buf;					// read data goes into this buffer
+	iov.iov_len = buflen;					// length of memory space		 
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_resid = buflen;					// amount to read from the file
+	u.uio_offset = 0;		// offset 
+	u.uio_segflg = UIO_USERISPACE;
+	u.uio_rw = UIO_READ;					// READ or WRITE ?
+	u.uio_space = curthread->t_addrspace;	// address space of thread
+
+	result = vfs_getcwd(&u);
+
+	if (result) { // error
+		return result;
+	}
+
+	return 0;
+
 }
