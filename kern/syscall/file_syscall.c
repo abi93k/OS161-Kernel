@@ -136,6 +136,9 @@ sys_lseek(int fd, off_t pos, int whence)
 		}
 		offset = f_stat.st_size + pos;				// end of file + position
 	}
+	
+	if(offset < 0)
+		return EINVAL;								// the resulting seek position would be negative.
 
 	result = VOP_TRYSEEK(t_fd_entry->vn, offset);
 	if(result) {
