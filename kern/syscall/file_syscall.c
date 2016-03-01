@@ -50,6 +50,7 @@ sys_read(int fd, void* buf, size_t buflen, ssize_t bytes_read)
 	}
 
 	t_fd_entry->offset = u.uio_offset;
+  *bytes_read = buflen - u.uio_resid;
 	lock_release(t_fd_entry->lock);
 
 	return 0;
@@ -96,6 +97,7 @@ sys_write(int fd, const void *buf, size_t nbytes, ssize_t bytes_written)
 	}
 
 	t_fd_entry->offset = u.uio_offset;
+  *bytes_written = buflen - u.uio_resid;
 	lock_release(t_fd_entry->lock);
 
 	return 0;
@@ -146,6 +148,7 @@ sys_lseek(int fd, off_t pos, int whence, off_t new_offset)
 		return result;
 	}
 	t_fd_entry->offset = offset;
+  *new_offset = offset;
 	lock_release(t_fd_entry->lock);
 
 	return offset;
@@ -177,7 +180,7 @@ sys__getcwd(char *buf, size_t buflen, size_t data_length)
 	if (result) { // error
 		return result;
 	}
-
+  *data_length = buflen - u.uio_resid;
 	return 0;
 
 }

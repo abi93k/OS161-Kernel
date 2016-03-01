@@ -115,6 +115,44 @@ syscall(struct trapframe *tf)
 
 	    /* File system calls */
 
+	    case SYS_read:
+	    	int fd = tf->tf_a0;
+	    	void * buf = tf->tf_a1;
+	    	size_t buflen = tf->tf_a2;
+	    	ssize_t bytes_read;
+	    	err = sys_read(fd, buf, buflen, &bytes_read);
+	    	retval = bytes_read;
+	    	break;
+
+	    case SYS_write:
+	    	int fd = tf->tf_a0;
+	    	const void * buf = tf->tf_a1;
+	    	size_t buflen = tf->tf_a2;
+	    	ssize_t bytes_written;
+	    	err = sys_write(fd, buf, buflen, &bytes_written);
+	    	retval = bytes_written;
+	    	break;
+
+	    case SYS_lseek:
+	    	int fd = tf->tf_a0;
+	    	off_t pos = (((off_t)tf->tf_a2 << 32) | tf->tf_a3); // 64 bit 
+	    	int whence;
+	    	err = copyin((const userptr_t)(tf->tf_sp+16), &whence, sizeof(whence));
+	    	off_t new_offset;
+	    	if(err)
+	    		break;
+	    	err = sys_lseek(fd, pos, whence, &new_offset);
+	    	retval = new_offset;
+	    	break;
+
+		case SYS___getcwd:
+			char * buf = tf->tf_a0	
+			size_t buflen =  tf->tf_a1;
+			size_t data_length;
+			err = sys___getcwd(buf, buflen, &data_length);
+			retval = data_len;
+			break;
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
