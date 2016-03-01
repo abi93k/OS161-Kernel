@@ -11,8 +11,8 @@
 #include <uio.h>
 
 
-ssize_t
-sys_read(int fd, void* buf, size_t buflen) 
+int
+sys_read(int fd, void* buf, size_t buflen, ssize_t bytes_read) 
 {
 	struct iovec iov;
 	struct uio u;
@@ -57,8 +57,8 @@ sys_read(int fd, void* buf, size_t buflen)
 }
 
 
-ssize_t
-sys_write(int fd, const void *buf, size_t nbytes) 
+int
+sys_write(int fd, const void *buf, size_t nbytes, ssize_t bytes_written) 
 {
 	struct iovec iov;
 	struct uio u;
@@ -101,8 +101,8 @@ sys_write(int fd, const void *buf, size_t nbytes)
 	return 0;
 }
 
-off_t
-sys_lseek(int fd, off_t pos, int whence) 
+int
+sys_lseek(int fd, off_t pos, int whence, off_t new_offset) 
 {
 
 	struct iovec iov;
@@ -152,7 +152,7 @@ sys_lseek(int fd, off_t pos, int whence)
 }
 
 int
-sys__getcwd(char *buf, size_t buflen) 
+sys__getcwd(char *buf, size_t buflen, size_t data_length) 
 {
 	struct iovec iov;
 	struct uio u;
