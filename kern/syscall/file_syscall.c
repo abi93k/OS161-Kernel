@@ -110,7 +110,7 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 
 	return 0;
 }
-/*
+
 int
 sys_lseek(int fd, off_t pos, int whence, off_t *new_offset) 
 {
@@ -150,18 +150,18 @@ sys_lseek(int fd, off_t pos, int whence, off_t *new_offset)
 	if(offset < 0)
 		return EINVAL;								// the resulting seek position would be negative.
 
-	result = VOP_TRYSEEK(t_fd_entry->vn, offset);
+	result = VOP_ISSEEKABLE(t_fd_entry->vn);
 	if(result) {
 		lock_release(t_fd_entry->lock);
 		return result;
 	}
 	t_fd_entry->offset = offset;
-  *new_offset = offset;
+  	*new_offset = offset;
 	lock_release(t_fd_entry->lock);
 
-	return offset;
+	return 0;
 }
-*/
+
 int
 sys__getcwd(void *buf, size_t buflen, size_t *data_length) 
 {
