@@ -18,17 +18,20 @@
 
 /*
  * TODO
- * Why hardcoded open flags ? Change to variables 
- * Add synchronization at appropriate places
- * prefix sys_ to all functions
+ * Why hardcoded open flags ? Change to variables     ||DONE||
+ * Add synchronization at appropriate places          ||DONE||
+ * prefix sys_ to all functions                       ||DONE||
  *
- * SIDE NOTE
- * Give clear commit messages describing what was done in one line. It will be easier to roll back 
- * if we mess up the source files during merge. You don't have to mention your name, it gets recorded
- * anyway
+ * |||||||||||||||||||||||||||||||| NOTE |||||||||||||||||||||||
+ * Check all the areas you put a flag , search for " ||CHECK IF OKAY|| " to see those places.
+ * I have added the retval values for open() and dup2()
  */
- int open(char *filepath, int flags, mode_t mode)
+
+ int sys_open(const char *filepath, int flags, mode_t mode, int *retval)
  {
+
+  
+  struct lock* locks=lock_create("pushlock");
 
   //INITIALIZE fdesc OBJECT
   struct fdesc *fd=kmalloc(sizeof(fdesc)); 
@@ -38,7 +41,7 @@
     return EFAULT; 
 
   //Step 2 - ERROR - Check if the flags are a valid.
-  if(flags && 0 !=0 || flags && 1 !=1 || flags && 2 !=2)
+  if(flags && O_RDONLY !=O_RDONLY || flags && O_WRONLY1 !=O_WRONLY || flags && O_RDWR !=O_RDWR)
     return EINVAL;
   if(flag < 0 || flag >OPEN_MAX)
     return EINVAL;
@@ -59,7 +62,7 @@
     return result;
 
   //Step 6 - Check for Append and set offset value accordingly.
-  if(flag && 32==32)
+  if(flag && O_APPEND==O_APPEND)
     fd->offset=vop_stat(fd->vn);
   else
     fd->offset=0;
@@ -72,6 +75,8 @@
 
   //Step 8 - Find the next open node in curthread->t_fdtble.
   int index=3;
+
+  lock_aquire(locks);
   while(curthread->t_fdtable[index]!=0 && index<PATH_MAX)
   {
     index++
@@ -87,13 +92,18 @@
   //Step 10 - Copy the fdesc object into the next empty crthread->t_fdtable index.
   curthread->t_fdtable[index]=fd;
 
-  return index;
+  lock_release(locks);
+  lock_destroy(locks);
+  retval= index;
+  return 0;
 }
 
-int close(int fd)
+int sys_close(int fd)
 {
 
-  filedesc = curthread->t_fdtable[fd]; 
+  struct* lock locks=lock_create("closelock");
+
+  struct fdesc* filedesc = curthread->t_fdtable[fd]; 
 
   //Step 1 -  Check if the fd is valid
   if(fd<0 || fd>PATH_MAX)
@@ -104,39 +114,44 @@ int close(int fd)
   if(filedesc==NULL)
     return EBADF;
 
+  lock_aquire(locks);
+
   //Step 3 - Decrement the reference count and free memory if zero.
   filedesc->reference_count -= 1;
   if(filedesc->reference_count==0)
   {
-    // FLAG
+
+    //|| CHECK IF OKAY ||
     // What is tempfd ? It is never declared. 
     // You removed tempfd and then try to access it ? This will cause segmentation fault.
-    kfree(tempfd); 
-    tempfd=NULL; 
-    lock_destroy(tempfd->lock);
+    kfree(filedesc); 
+    filedesc=NULL; 
+    lock_destroy(filedesc->lock);
   }
-
+    lock_release(locks);
   //Step 4 - Use vfs_close()
   int result;
   result=vfs_close(filedesc->vn);
-
+  lock_destroy(locks);
+  retval =0;
   return 0;
 }
 
-int chdir(const char *newpath)
+int sys_chdir(const char *newpath)
 {
 
   //Step 3 - Use copyinstr() to copy the filepath to kernel memory.
   int copyresult;
   char *dest;
-  // FLAG 
+
+  // || CHECK IF OKAY ||
   // You are using len on an empty char array ?
-  size_t len=sizeof(dest); 
+  size_t len=PATH_MAX; 
   size_t actual;
 
-  // FLAG
+  //|| CHECK IF OKAY ||
   // What is filepath ?
-  copyresult=copyinstr((const_userptr_t) filepath, dest, len, &actual);
+  copyresult=copyinstr((const_userptr_t) newpath, dest, len, &actual);
 
   //Step 4
   int result;
@@ -150,7 +165,7 @@ int chdir(const char *newpath)
 
 
 
-int dup2(int oldfd,int newfd)
+int sys_dup2(int oldfd,int newfd, int *retval)
 {
 
 
@@ -182,7 +197,8 @@ int dup2(int oldfd,int newfd)
 
   //Step 8
   lock_release(curthread->t_fdtable[oldfd]);
-  return newfd;
+  retval=newfd;
+  return 0;
 
 
 }

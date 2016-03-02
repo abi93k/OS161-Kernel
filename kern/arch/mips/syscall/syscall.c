@@ -98,7 +98,11 @@ syscall(struct trapframe *tf)
 	 * deal with it except for calls that return other values,
 	 * like write.
 	 */
-
+	 /*
+	 * |||||||||||||||||||||||||||||| NOTE |||||||||||||||||||||||||||||||||
+	 * 
+	 * I have added the switch case statements for open,clsoe,chdir and dup2- check it out
+	 */
 	retval = 0;
 
 	switch (callno) {
@@ -112,7 +116,18 @@ syscall(struct trapframe *tf)
 		break;
 
 	    /* Add stuff here */
-
+	    case SYS_open:
+		err = sys_open((const char*)tf->tf_a0,tf->tf_a1,(mode_t)tf->tf_a2, &retval);
+		break;
+		case SYS_close:
+		err = sys_close(tf->tf_a0);
+		break;
+		case SYS_chdir:
+		err = sys_chdir((const char*)tf->tf_a0);
+		break;
+		case SYS_dup2:
+		err = sys_dup2(tf->tf_a0,tf->tf_a1, &retval);
+		break;
 	    /* File system calls */
 
 	    default:
