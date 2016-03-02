@@ -27,7 +27,7 @@ sys_read(int fd, void* buf, size_t buflen, ssize_t *bytes_read)
 	if (fd < 0 || fd > OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
 
-	struct fdesc * t_fd_entry = curthread->t_fdtable[fd];
+	struct fdesc * t_fd_entry = curproc->t_fdtable[fd];
 
 	if(t_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
@@ -75,7 +75,7 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 	if (fd < 0 || fd > OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
 
-	struct fdesc * t_fd_entry = curthread->t_fdtable[fd];
+	struct fdesc * t_fd_entry = curproc->t_fdtable[fd];
 
 	if(t_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
@@ -123,7 +123,7 @@ sys_lseek(int fd, off_t pos, int whence, off_t *new_offset)
 	if (fd < 0 || fd > OPEN_MAX) 
 		return EBADF; 								// not a valid file descriptor
 
-	struct fdesc * t_fd_entry = curthread->t_fdtable[fd];
+	struct fdesc * t_fd_entry = curproc->t_fdtable[fd];
 
 	if(t_fd_entry == NULL)
 		return EBADF; 								// not a valid file descriptor
