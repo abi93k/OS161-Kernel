@@ -37,6 +37,8 @@
 #include <syscall.h>
 
 #include <file_syscall.h>
+#include <copyinout.h>
+
 
 
 /*
@@ -114,43 +116,50 @@ syscall(struct trapframe *tf)
 	    /* Add stuff here */
 
 	    /* File system calls */
+	    int fd;
+	    void *buf;
+	    size_t buflen;
+	    ssize_t bytes_read;
+	    ssize_t bytes_written;
+	    //off_t pos;
+	    //int whence;
+	    //off_t new_offset;
+
+
 
 	    case SYS_read:
-	    	int fd = tf->tf_a0;
-	    	void * buf = tf->tf_a1;
-	    	size_t buflen = tf->tf_a2;
-	    	ssize_t bytes_read;
+	    	fd = tf->tf_a0;
+	    	buf = (userptr_t)tf->tf_a1;
+	    	buflen = tf->tf_a2;
 	    	err = sys_read(fd, buf, buflen, &bytes_read);
 	    	retval = bytes_read;
 	    	break;
 
 	    case SYS_write:
-	    	int fd = tf->tf_a0;
-	    	const void * buf = tf->tf_a1;
-	    	size_t buflen = tf->tf_a2;
-	    	ssize_t bytes_written;
+	    	fd = tf->tf_a0;
+	    	buf = (userptr_t)tf->tf_a1;
+	    	buflen = tf->tf_a2;
 	    	err = sys_write(fd, buf, buflen, &bytes_written);
 	    	retval = bytes_written;
 	    	break;
-
+	    /*
 	    case SYS_lseek:
-	    	int fd = tf->tf_a0;
-	    	off_t pos = (((off_t)tf->tf_a2 << 32) | tf->tf_a3); // 64 bit 
-	    	int whence;
+	    	fd = tf->tf_a0;
+	    	pos = (((off_t)tf->tf_a2 << 32) | tf->tf_a3); // 64 bit 
 	    	err = copyin((const userptr_t)(tf->tf_sp+16), &whence, sizeof(whence));
-	    	off_t new_offset;
 	    	if(err)
 	    		break;
 	    	err = sys_lseek(fd, pos, whence, &new_offset);
 	    	retval = new_offset;
 	    	break;
+	    	*/
 
 		case SYS___getcwd:
-			char * buf = tf->tf_a0	
-			size_t buflen =  tf->tf_a1;
+			buf = (userptr_t)tf->tf_a0;	
+			buflen =  tf->tf_a1;
 			size_t data_length;
-			err = sys___getcwd(buf, buflen, &data_length);
-			retval = data_len;
+			err = sys__getcwd(buf, buflen, &data_length);
+			retval = data_length;
 			break;
 
 	    default:
