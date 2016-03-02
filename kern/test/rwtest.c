@@ -9,7 +9,7 @@
 #include <thread.h>
 #include <synch.h>
 #include <test.h>
-#include <kern/secret.h>
+#include <kern/test161.h>
 #include <spinlock.h>
 
 #define CREATELOOPS		8
@@ -18,7 +18,7 @@
 
 static struct semaphore *donesem = NULL;
 static struct rwlock *testrwlock = NULL;
-static bool test_status = FAIL;
+static bool test_status = TEST161_FAIL;
 
 int n_reader_threads_accessing;
 int n_writer_threads_accessing;
@@ -38,7 +38,7 @@ rwlock_reader_thread(void *junk, unsigned long num)
 
 	// check if no writers have access and no more than MAX_READER threads are acessing critical section :)
 	if(n_writer_threads_accessing > 0 || n_reader_threads_accessing > MAX_READERS) {
-		test_status=FAIL;
+		test_status=TEST161_FAIL;
 	}
 
 	n_reader_threads_accessing--;
@@ -65,7 +65,7 @@ rwlock_writer_thread(void *junk, unsigned long num)
 
 	// check if I have exclusice access :)
 	if(n_reader_threads_accessing>0 || n_writer_threads_accessing > 1) {
-		test_status=FAIL;
+		test_status=TEST161_FAIL;
 	}
 
 	n_writer_threads_accessing--;
@@ -107,7 +107,7 @@ int rwtest(int nargs, char **args) {
 			sem_destroy(donesem);
 		}
 	}
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	// creating reader threads
 	for (i=0; i<NREADERTHREADS; i++) {
@@ -141,7 +141,7 @@ int rwtest2(int nargs, char **args) {
 	(void)args;
 
 	kprintf_n("rwt2 unimplemented\n");
-	success(FAIL, SECRET, "rwt2");
+	success(TEST161_FAIL, SECRET, "rwt2");
 
 	return 0;
 }
@@ -151,7 +151,7 @@ int rwtest3(int nargs, char **args) {
 	(void)args;
 
 	kprintf_n("rwt3 unimplemented\n");
-	success(FAIL, SECRET, "rwt3");
+	success(TEST161_FAIL, SECRET, "rwt3");
 
 	return 0;
 }
@@ -161,7 +161,7 @@ int rwtest4(int nargs, char **args) {
 	(void)args;
 
 	kprintf_n("rwt4 unimplemented\n");
-	success(FAIL, SECRET, "rwt4");
+	success(TEST161_FAIL, SECRET, "rwt4");
 
 	return 0;
 }
@@ -171,7 +171,7 @@ int rwtest5(int nargs, char **args) {
 	(void)args;
 
 	kprintf_n("rwt5 unimplemented\n");
-	success(FAIL, SECRET, "rwt5");
+	success(TEST161_FAIL, SECRET, "rwt5");
 
 	return 0;
 }
