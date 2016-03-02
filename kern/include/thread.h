@@ -107,7 +107,7 @@ struct thread {
 	 */
 
 	/* add more here as needed */
-	struct fdesc* t_fdtable[OPEN_MAX];
+	
 
 };
 

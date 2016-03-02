@@ -126,7 +126,7 @@ runprogram(char *progname)
 	STDIN_fd->offset = 0;
 	STDIN_fd->reference_count = 1;
 
-	curthread->t_fdtable[0] = STDIN_fd;
+	curproc->t_fdtable[0] = STDIN_fd;
 
 
 	/* STDOUT */
@@ -147,7 +147,7 @@ runprogram(char *progname)
 	STDOUT_fd->offset = 0;
 	STDOUT_fd->reference_count = 1;
 
-	curthread->t_fdtable[1] = STDOUT_fd;
+	curproc->t_fdtable[1] = STDOUT_fd;
 
 	/* STDERR */
 	strcpy(console_path,"con:");
@@ -167,7 +167,7 @@ runprogram(char *progname)
 	STDERR_fd->offset = 0;
 	STDERR_fd->reference_count = 1;
 
-	curthread->t_fdtable[2] = STDERR_fd;
+	curproc->t_fdtable[2] = STDERR_fd;
 
 	/* End initializing console */
 
