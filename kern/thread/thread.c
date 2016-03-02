@@ -148,10 +148,6 @@ thread_create(const char *name)
 
 	/* If you add to struct thread, be sure to initialize here */
 
-	/* File table initialization */
-	for (int i = 0; i < OPEN_MAX; ++i) {
-		thread->t_fdtable[i] = 0;
-	}
 
 
 	return thread;
@@ -274,13 +270,6 @@ thread_destroy(struct thread *thread)
 	 * If you add things to struct thread, be sure to clean them up
 	 * either here or in thread_exit(). (And not both...)
 	 */
-
-	 /* Free file table*/
-	for (int i = 0; i < OPEN_MAX; ++i) {
-		if (thread->t_fdtable[i] != NULL) {
-			kfree(thread->t_fdtable[i]);
-		}
-	}
 
 	/* Thread subsystem fields */
 	KASSERT(thread->t_proc == NULL);

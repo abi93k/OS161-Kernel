@@ -82,6 +82,12 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
+	/* File table initialization */
+	for (int i = 0; i < OPEN_MAX; i++) {
+		proc->t_fdtable[i] = 0;
+	}
+
+
 	return proc;
 }
 
@@ -163,7 +169,17 @@ proc_destroy(struct proc *proc)
 			proc->p_addrspace = NULL;
 		}
 		as_destroy(as);
+
 	}
+
+
+	/* Free file table*/
+	for (int i = 0; i < OPEN_MAX; i++) {
+		if (proc->t_fdtable[i] != NULL) {
+			kfree(proc->t_fdtable[i]);
+		}
+	}
+
 
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
