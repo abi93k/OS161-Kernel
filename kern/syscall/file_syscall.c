@@ -192,4 +192,161 @@ sys__getcwd(void *buf, size_t buflen, size_t *data_length)
   	*data_length = buflen - u.uio_resid;
 	return 0;
 
+ int sys_open(char *filepath, int flags, mode_t mode, int *retval)
+ {
+
+  
+  struct lock* locks=lock_create("pushlock");
+
+  struct fdesc *fd=kmalloc(sizeof(struct fdesc)); 
+
+  if(filepath==NULL)
+    return EFAULT; 
+
+  if(((flags & O_RDONLY) !=O_RDONLY) && ((flags & O_WRONLY) !=O_WRONLY) && ((flags & O_RDWR) !=O_RDWR))
+    return EINVAL;
+  if(flags < 0 || flags >OPEN_MAX)
+    return EINVAL;
+
+  int copyresult;
+  char *dest =kmalloc(sizeof(char)*PATH_MAX);
+  size_t actual;
+
+  copyresult=copyinstr((const_userptr_t) filepath, dest, PATH_MAX, &actual);
+  if(copyresult)
+    return copyresult;
+  int result;
+
+  result = vfs_open(filepath,flags,mode,&fd->vn);
+  if(result)
+    return result;
+
+  if((flags & O_APPEND)==O_APPEND)
+    {
+      struct  stat ft;
+      int res=VOP_STAT(fd->vn,&ft);
+      if(res)
+        return res;
+      fd->offset=ft.st_size;
+    }
+  else
+    fd->offset=0;
+
+
+  //TODO add name
+  fd->reference_count=1;
+  fd->flags=flags;
+  fd->lock= lock_create(dest);
+
+  int index=3;
+
+  lock_acquire(locks);
+  while(curproc->t_fdtable[index]!=0 && index<PATH_MAX)
+  {
+    index++;
+  }
+
+
+  if(index > OPEN_MAX)
+    return ENFILE;  
+
+  curproc->t_fdtable[index]= kmalloc(sizeof(struct fdesc*));
+
+  curproc->t_fdtable[index]=fd;
+
+  lock_release(locks);
+  lock_destroy(locks);
+  *retval= index;
+  return 0;
+}
+
+int sys_close(int fd)
+{
+
+  struct lock* locks=lock_create("closelock");
+
+  struct fdesc* filedesc = curproc->t_fdtable[fd]; 
+
+  if(fd<0 || fd>PATH_MAX)
+    return EBADF;
+
+  if(filedesc==NULL)
+    return EBADF;
+
+  lock_acquire(locks);
+
+  filedesc->reference_count -= 1;
+  if(filedesc->reference_count==0)
+  {
+
+    lock_destroy(filedesc->lock);
+    vfs_close(filedesc->vn);
+    kfree(filedesc); 
+    filedesc=NULL; 
+
+    
+  }
+    lock_release(locks);  
+  
+  lock_destroy(locks);
+  
+  return 0;
+}
+
+int sys_chdir(const char *newpath)
+{
+
+  int copyresult;
+  char *dest =kmalloc(sizeof(char));
+  
+
+
+  size_t len=PATH_MAX; 
+  size_t actual;
+
+
+  copyresult=copyinstr((const_userptr_t) newpath, dest, len, &actual);
+  if(copyresult)
+    return copyresult;
+  int result;
+  result=vfs_chdir(dest);
+
+  if(result<0)
+    return EFAULT;
+
+  return 0;
+}
+
+
+
+int sys_dup2(int oldfd,int newfd, int *retval)
+{
+
+
+  if(oldfd<0 || newfd<0 || curproc->t_fdtable[oldfd]==NULL)
+    return EBADF;
+
+  if(oldfd==newfd)
+    return newfd;
+
+  if(curproc->t_fdtable[newfd]!=NULL)
+  {
+    
+    sys_close(newfd);
+    
+  }
+  else
+    curproc->t_fdtable[newfd]= kmalloc(sizeof(struct fdesc*));
+
+
+  lock_acquire(curproc->t_fdtable[oldfd]->lock);
+  curproc->t_fdtable[oldfd]->reference_count+=1;
+
+  curproc->t_fdtable[newfd]=curproc->t_fdtable[oldfd];
+
+  lock_release(curproc->t_fdtable[oldfd]->lock);
+  *retval=newfd;
+  return 0;
+
+
 }
