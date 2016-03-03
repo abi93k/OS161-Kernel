@@ -42,18 +42,18 @@
     return EFAULT; 
 
   //Step 2 - ERROR - Check if the flags are a valid.
-  if((flags & O_RDONLY) !=O_RDONLY || (flags & O_WRONLY) !=O_WRONLY || (flags & O_RDWR) !=O_RDWR)
+  if(((flags & O_RDONLY) !=O_RDONLY) && ((flags & O_WRONLY) !=O_WRONLY) && ((flags & O_RDWR) !=O_RDWR))
     return EINVAL;
   if(flags < 0 || flags >OPEN_MAX)
     return EINVAL;
 
   //Step 3 - Use copyinstr() to copy the filepath to kernel memory.
   int copyresult;
-  char *dest =kmalloc(sizeof(char));
-  size_t len=sizeof(dest);
+  char *dest =kmalloc(sizeof(char)*PATH_MAX);
+ // size_t len=PATH_MAX;
   size_t actual;
 
-  copyresult=copyinstr((const_userptr_t) filepath, dest, len, &actual);
+  copyresult=copyinstr((const_userptr_t) filepath, dest, PATH_MAX, &actual);
   if(copyresult)
     return copyresult;
   //Step 5 - Use vfs_open() to open the file.
@@ -134,14 +134,17 @@ int sys_close(int fd)
     //|| CHECK IF OKAY ||
     // What is tempfd ? It is never declared. 
     // You removed tempfd and then try to access it ? This will cause segmentation fault.
+    lock_destroy(filedesc->lock);
+    vfs_close(filedesc->vn);
     kfree(filedesc); 
     filedesc=NULL; 
-    lock_destroy(filedesc->lock);
+
+    
   }
     lock_release(locks);
   //Step 4 - Use vfs_close()
  
-  vfs_close(filedesc->vn);
+  
   
   lock_destroy(locks);
   
