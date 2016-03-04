@@ -38,6 +38,7 @@
 
 #include <file_syscall.h>
 #include <copyinout.h>
+#include <endian.h>
 
 
 
@@ -136,9 +137,9 @@ syscall(struct trapframe *tf)
 	    size_t buflen;
 	    ssize_t bytes_read;
 	    ssize_t bytes_written;
-	    //off_t pos;
-	    //int whence;
-	    //off_t new_offset;
+	    uint64_t pos;
+	    int whence;
+	    off_t new_offset;
 
 
 
@@ -157,17 +158,21 @@ syscall(struct trapframe *tf)
 	    	err = sys_write(fd, buf, buflen, &bytes_written);
 	    	retval = bytes_written;
 	    	break;
-	    /*
+	    
 	    case SYS_lseek:
 	    	fd = tf->tf_a0;
-	    	pos = (((off_t)tf->tf_a2 << 32) | tf->tf_a3); // 64 bit 
+	    	join32to64(tf->tf_a2,tf->tf_a3,&pos);
+
 	    	err = copyin((const userptr_t)(tf->tf_sp+16), &whence, sizeof(whence));
 	    	if(err)
 	    		break;
-	    	err = sys_lseek(fd, pos, whence, &new_offset);
-	    	retval = new_offset;
+	    	err = sys_lseek(fd, (off_t)pos, whence, &new_offset);
+	    	retval = (int32_t)((new_offset & 0xFFFFFFFF00000000) >> 32);
+	    	tf->tf_v1 = (int32_t)(new_offset & 0xFFFFFFFF);
+
+
 	    	break;
-	    	*/
+	    	
 
 		case SYS___getcwd:
 			buf = (userptr_t)tf->tf_a0;	

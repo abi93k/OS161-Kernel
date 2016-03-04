@@ -151,7 +151,7 @@ sys_lseek(int fd, off_t pos, int whence, off_t *new_offset)
 		return EINVAL;								// the resulting seek position would be negative.
 
 	result = VOP_ISSEEKABLE(t_fd_entry->vn);
-	if(result) {
+	if(!result) {
 		lock_release(t_fd_entry->lock);
 		return result;
 	}
@@ -191,6 +191,7 @@ sys__getcwd(void *buf, size_t buflen, size_t *data_length)
 	}
   	*data_length = buflen - u.uio_resid;
 	return 0;
+}
 
  int sys_open(char *filepath, int flags, mode_t mode, int *retval)
  {
