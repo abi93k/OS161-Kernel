@@ -48,11 +48,14 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <synch.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
+struct proc *proc_table[PID_MAX];
+struct lock *proc_table_lock;
 
 /*
  * Create a proc structure.
@@ -84,8 +87,28 @@ proc_create(const char *name)
 
 	/* File table initialization */
 	for (int i = 0; i < OPEN_MAX; i++) {
-		proc->t_fdtable[i] = 0;
+		proc->p_fdtable[i] = NULL;
 	}
+
+	/* user process support */
+
+	proc->ppid = 0;
+	proc->exited = false;
+	proc->exit_code = 0;
+
+	proc->exit_sem = sem_create("exit_sem",0);
+
+	/* assigning process id */
+
+	for(pid_t i = 1; i<PID_MAX; i++) {
+		if(proc_table[i] == NULL) {
+			proc->pid = i;
+			break;
+		}
+	}
+
+	/* add process to global process table */
+	proc_table[proc->pid] = proc;
 
 
 	return proc;
@@ -175,10 +198,14 @@ proc_destroy(struct proc *proc)
 
 	/* Free file table*/
 	for (int i = 0; i < OPEN_MAX; i++) {
-		if (proc->t_fdtable[i] != NULL) {
-			kfree(proc->t_fdtable[i]);
+		if (proc->p_fdtable[i] != NULL) {
+			kfree(proc->p_fdtable[i]);
 		}
 	}
+
+	proc_table[proc->pid] = NULL;
+
+	sem_destroy(proc->exit_sem);
 
 
 	KASSERT(proc->p_numthreads == 0);
@@ -194,10 +221,21 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
+	/* initialize global process table */
+
+	for (pid_t pid = 0; pid < PID_MAX; pid++) {
+		proc_table[pid] = NULL;
+	}
+
+	proc_table_lock = lock_create("proc_table_lock");
+
 	kproc = proc_create("[kernel]");
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
 	}
+
+	/* kernel process is process one */
+	proc_table[1] = kproc;
 }
 
 /*
@@ -219,6 +257,10 @@ proc_create_runprogram(const char *name)
 	/* VM fields */
 
 	newproc->p_addrspace = NULL;
+
+	/* kernel is parent */
+
+	newproc->ppid = 1; 
 
 	/* VFS fields */
 
@@ -334,3 +376,5 @@ proc_setas(struct addrspace *newas)
 	spinlock_release(&proc->p_lock);
 	return oldas;
 }
+
+
