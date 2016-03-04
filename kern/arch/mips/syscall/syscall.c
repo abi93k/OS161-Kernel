@@ -93,19 +93,6 @@ syscall(struct trapframe *tf)
 
 	callno = tf->tf_v0;
 
-	/*
-	 * Initialize retval to 0. Many of the system calls don't
-	 * really return a value, just 0 for success and -1 on
-	 * error. Since retval is the value returned on success,
-	 * initialize it to 0 by default; thus it's not necessary to
-	 * deal with it except for calls that return other values,
-	 * like write.
-	 */
-	 /*
-	 * |||||||||||||||||||||||||||||| NOTE |||||||||||||||||||||||||||||||||
-	 * 
-	 * I have added the switch case statements for open,clsoe,chdir and dup2- check it out
-	 */
 	retval = 0;
 
 	switch (callno) {
@@ -119,18 +106,7 @@ syscall(struct trapframe *tf)
 		break;
 
 	    /* Add stuff here */
-	    case SYS_open:
-		err = sys_open((char*)tf->tf_a0,tf->tf_a1,(mode_t)tf->tf_a2, &retval);
-		break;
-		case SYS_close:
-		err = sys_close(tf->tf_a0);
-		break;
-		case SYS_chdir:
-		err = sys_chdir((char*)tf->tf_a0);
-		break;
-		case SYS_dup2:
-		err = sys_dup2(tf->tf_a0,tf->tf_a1, &retval);
-		break;
+
 	    /* File system calls */
 	    int fd;
 	    void *buf;
@@ -142,6 +118,21 @@ syscall(struct trapframe *tf)
 	    off_t new_offset;
 
 
+	    case SYS_open:
+			err = sys_open((char*)tf->tf_a0,tf->tf_a1,(mode_t)tf->tf_a2, &retval);
+		break;
+
+		case SYS_close:
+			err = sys_close(tf->tf_a0);
+		break;
+
+		case SYS_chdir:
+			err = sys_chdir((char*)tf->tf_a0);
+		break;
+
+		case SYS_dup2:
+			err = sys_dup2(tf->tf_a0,tf->tf_a1, &retval);
+		break;
 
 	    case SYS_read:
 	    	fd = tf->tf_a0;
@@ -167,10 +158,10 @@ syscall(struct trapframe *tf)
 	    	if(err)
 	    		break;
 	    	err = sys_lseek(fd, (off_t)pos, whence, &new_offset);
-	    	retval = (int32_t)((new_offset & 0xFFFFFFFF00000000) >> 32);
-	    	tf->tf_v1 = (int32_t)(new_offset & 0xFFFFFFFF);
 
-
+	    	split64to32((uint64_t)new_offset,&tf->tf_v0,&tf->tf_v1);
+	    	/* hack */
+	    	retval = tf->tf_v0;
 	    	break;
 	    	
 
