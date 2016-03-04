@@ -1,221 +1,323 @@
+/*
+ * Authors: Abhishek Kannan, Arjun Sundaresh
+ */
 #include <types.h>
+#include <clock.h>
+#include <copyinout.h>
+#include <current.h>
+#include <file_syscall.h>
 #include <kern/errno.h>
 #include <kern/fcntl.h>
-#include <lib.h>
-#include <proc.h>
-#include <current.h>
-#include <addrspace.h>
-#include <vm.h>
-#include <copyinout.h>
-#include <vfs.h>
-#include <syscall.h>
-#include <test.h>
+#include <kern/seek.h>
 #include <vnode.h>
+#include <uio.h>
 #include <synch.h>
+#include <vfs.h>
 #include <kern/stat.h>
-#include <file_syscall.h>
-#include <thread.h>
+#include <proc.h>
 
 
-/*
- * TODO
- * Why hardcoded open flags ? Change to variables     ||DONE||
- * Add synchronization at appropriate places          ||DONE||
- * prefix sys_ to all functions                       ||DONE||
- *
- * |||||||||||||||||||||||||||||||| NOTE |||||||||||||||||||||||
- * Check all the areas you put a flag , search for " ||CHECK IF OKAY|| " to see those places.
- * I have added the retval values for open() and dup2()
- */
-
- int sys_open(char *filepath, int flags, mode_t mode, int *retval)
+ int
+ sys_read(int fd, void* buf, size_t buflen, ssize_t *bytes_read) 
  {
+ 	struct iovec iov;
+ 	struct uio u;
+ 	int result;
 
-  
-  struct lock* locks=lock_create("pushlock");
+ 	if (fd < 0 || fd > OPEN_MAX) 
+		return EBADF; 						// not a valid file descriptor
 
-  //INITIALIZE fdesc OBJECT
-  struct fdesc *fd=kmalloc(sizeof(struct fdesc)); 
+	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
 
-  //Step 1 -ERROR - Check if filepath is a invalid pointer.
-  if(filepath==NULL)
-    return EFAULT; 
+	if(p_fd_entry == NULL)
+		return EBADF; 						// not a valid file descriptor
 
-  //Step 2 - ERROR - Check if the flags are a valid.
-  if(((flags & O_RDONLY) !=O_RDONLY) && ((flags & O_WRONLY) !=O_WRONLY) && ((flags & O_RDWR) !=O_RDWR))
-    return EINVAL;
-  if(flags < 0 || flags >OPEN_MAX)
-    return EINVAL;
-
-  //Step 3 - Use copyinstr() to copy the filepath to kernel memory.
-  int copyresult;
-  char *dest =kmalloc(sizeof(char)*PATH_MAX);
- // size_t len=PATH_MAX;
-  size_t actual;
-
-  copyresult=copyinstr((const_userptr_t) filepath, dest, PATH_MAX, &actual);
-  if(copyresult)
-    return copyresult;
-  //Step 5 - Use vfs_open() to open the file.
-  int result;
-
-  result = vfs_open(filepath,flags,mode,&fd->vn);
-  if(result)
-    return result;
-
-  //Step 6 - Check for Append and set offset value accordingly.
-  if((flags & O_APPEND)==O_APPEND)
-    {
-      struct  stat ft;
-      int res=VOP_STAT(fd->vn,&ft);
-      if(res)
-        return res;
-      fd->offset=ft.st_size;
-    }
-  else
-    fd->offset=0;
-
-  //Step 7 - Create a fdesc object and keep data into its data items.
-
-  //Figure out thow to add name
-  //fd->name='c';
-  fd->reference_count=1;
-  fd->flags=flags;
-  fd->lock= lock_create(dest);
-
-  //Step 8 - Find the next open node in curproc->t_fdtble.
-  int index=3;
-
-  lock_acquire(locks);
-  while(curproc->t_fdtable[index]!=0 && index<PATH_MAX)
-  {
-    index++;
-  }
+	if (buf == NULL)
+		return EFAULT; 						//address space pointed to by buf is invalid.
 
 
-  // Check for ENFILE
-  if(index > OPEN_MAX)
-    return ENFILE;  
+	lock_acquire(p_fd_entry->lock);
 
-  curproc->t_fdtable[index]= kmalloc(sizeof(struct fdesc*));
+	/* from loadelf.c */
+	iov.iov_ubase = buf;					// read data goes into this buffer
+	iov.iov_len = buflen;					// length of memory space		 
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_resid = buflen;					// amount to read from the file
+	u.uio_offset = p_fd_entry->offset;		// offset 
+	u.uio_segflg = UIO_USERSPACE;
+	u.uio_rw = UIO_READ;					// READ or WRITE ?
+	u.uio_space = curproc->p_addrspace;	// address space of thread
 
-  //Step 10 - Copy the fdesc object into the next empty crthread->t_fdtable index.
-  curproc->t_fdtable[index]=fd;
+	result = VOP_READ(p_fd_entry->vn, &u);
 
-  lock_release(locks);
-  lock_destroy(locks);
-  *retval= index;
-  return 0;
+	if (result) { // error
+		lock_release(p_fd_entry->lock);
+		return result;
+	}
+
+	p_fd_entry->offset = u.uio_offset;
+	*bytes_read = buflen - u.uio_resid;
+	lock_release(p_fd_entry->lock);
+
+	return 0;
+
+}
+
+
+int
+sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written) 
+{
+	struct iovec iov;
+	struct uio u;
+	int result;
+
+	if (fd < 0 || fd > OPEN_MAX) 
+		return EBADF; 						// not a valid file descriptor
+
+	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
+
+	if(p_fd_entry == NULL)
+		return EBADF; 						// not a valid file descriptor
+
+	if (buf == NULL)
+		return EFAULT; 						//address space pointed to by buf is invalid.
+
+
+	lock_acquire(p_fd_entry->lock);
+
+	/* from loadelf.c */
+	iov.iov_ubase = buf;					// data to be written to the file
+	iov.iov_len = buflen;					// length of memory space		 
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_resid = buflen;					// amount to read from the file
+	u.uio_offset = p_fd_entry->offset;		// offset 
+	u.uio_segflg = UIO_USERSPACE;
+	u.uio_rw = UIO_WRITE;					// READ or WRITE ?
+	u.uio_space = curproc->p_addrspace;	// address space of thread
+
+	result = VOP_WRITE(p_fd_entry->vn, &u);
+
+	if (result) { // error
+		lock_release(p_fd_entry->lock);
+		return result;
+	}
+
+	p_fd_entry->offset = u.uio_offset;
+	*bytes_written = buflen - u.uio_resid;
+	lock_release(p_fd_entry->lock);
+
+	return 0;
+}
+
+int
+sys_lseek(int fd, off_t pos, int whence, off_t *new_offset) 
+{
+
+
+	off_t offset = 0;
+	struct stat f_stat;
+	int result;
+
+	if (fd < 0 || fd > OPEN_MAX) 
+		return EBADF; 								// not a valid file descriptor
+
+	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
+
+	if(p_fd_entry == NULL)
+		return EBADF; 								// not a valid file descriptor
+
+	if( (whence == SEEK_SET || whence == SEEK_CUR || whence == SEEK_END) == 0)
+		return EINVAL;								// whence is invalid
+
+	lock_acquire(p_fd_entry->lock);
+	if(whence == SEEK_SET) {
+		offset = pos;
+	}
+	else if(whence == SEEK_CUR) {
+		offset = p_fd_entry->offset + pos;
+	}
+	else if (whence == SEEK_END) {
+		result = VOP_STAT(p_fd_entry->vn, &f_stat);	// get file size to determine end of file
+		if(result) {
+			lock_release(p_fd_entry->lock);
+			return result;
+		}
+		offset = f_stat.st_size + pos;				// end of file + position
+	}
+	
+	if(offset < 0)
+		return EINVAL;								// the resulting seek position would be negative.
+
+	result = VOP_ISSEEKABLE(p_fd_entry->vn);
+	if(!result) {
+		lock_release(p_fd_entry->lock);
+		return result;
+	}
+	p_fd_entry->offset = offset;
+	*new_offset = offset;
+	lock_release(p_fd_entry->lock);
+
+	return 0;
+}
+
+int
+sys__getcwd(void *buf, size_t buflen, size_t *data_length) 
+{
+	struct iovec iov;
+	struct uio u;
+	int result;
+
+	if (buf == NULL)
+		return EFAULT; 						//address space pointed to by buf is invalid.
+
+
+	/* from loadelf.c */
+	iov.iov_ubase = buf;					// read data goes into this buffer
+	iov.iov_len = buflen;					// length of memory space		 
+	u.uio_iov = &iov;
+	u.uio_iovcnt = 1;
+	u.uio_resid = buflen;					// amount to read from the file
+	u.uio_offset = 0;						// offset 
+	u.uio_segflg = UIO_USERSPACE;
+	u.uio_rw = UIO_READ;					// READ or WRITE ?
+	u.uio_space = curproc->p_addrspace;	// address space of thread
+
+	result = vfs_getcwd(&u);
+
+	if (result) { // error
+		return result;
+	}
+	*data_length = buflen - u.uio_resid;
+	return 0;
+}
+
+int sys_open(char *filepath, int flags, mode_t mode, int *retval)
+{
+
+	struct fdesc *p_fd_entry=kmalloc(sizeof(struct fdesc)); 
+	char *kernel_buffer = kmalloc(sizeof(char)*PATH_MAX);	
+	size_t got;
+	struct stat f_stat;
+	int result;
+	int fd=3;
+
+	if(filepath==NULL)
+		return EFAULT; 
+
+	if(((flags & O_RDONLY) !=O_RDONLY) && ((flags & O_WRONLY) !=O_WRONLY) && ((flags & O_RDWR) !=O_RDWR))
+		return EINVAL;
+
+	result=copyinstr((const_userptr_t) filepath, kernel_buffer, PATH_MAX, &got);
+	if(result)
+		return result;
+
+	result = vfs_open(filepath,flags,mode,&p_fd_entry->vn);
+	if(result)
+		return result;
+
+	if((flags & O_APPEND)==O_APPEND)
+	{
+		result = VOP_STAT(p_fd_entry->vn,&f_stat);
+		if(result)
+			return result;
+		p_fd_entry->offset=f_stat.st_size;
+	}
+	else
+		p_fd_entry->offset=0;
+
+  	//TODO add name
+	p_fd_entry->reference_count = 1;
+	p_fd_entry->flags = flags;
+	p_fd_entry->lock = lock_create(kernel_buffer);
+
+
+	while(curproc->p_fdtable[fd]!=NULL && fd < OPEN_MAX)
+	{
+		fd++;
+	}
+
+	if(fd == OPEN_MAX) 
+		return ENFILE;  
+
+	curproc->p_fdtable[fd] = p_fd_entry;
+
+	*retval = fd;
+
+	return 0;
 }
 
 int sys_close(int fd)
 {
 
-  struct lock* locks=lock_create("closelock");
+	if(fd < 0 || fd > OPEN_MAX)
+		return EBADF;
 
-  struct fdesc* filedesc = curproc->t_fdtable[fd]; 
+	struct fdesc* p_fd_entry = curproc->p_fdtable[fd]; 
 
-  //Step 1 -  Check if the fd is valid
-  if(fd<0 || fd>PATH_MAX)
-    return EBADF;
+	if(p_fd_entry == NULL)
+		return EBADF;
 
 
-  //Step 2 - Check if there is a entry in the fdtable for that fd
-  if(filedesc==NULL)
-    return EBADF;
+	curproc->p_fdtable[fd]=NULL; 
 
-  lock_acquire(locks);
+	p_fd_entry->reference_count -= 1;
 
-  //Step 3 - Decrement the reference count and free memory if zero.
-  filedesc->reference_count -= 1;
-  if(filedesc->reference_count==0)
-  {
+	if(p_fd_entry->reference_count==0)
+	{
+		lock_destroy(p_fd_entry->lock);
+		vfs_close(p_fd_entry->vn);
+		kfree(p_fd_entry); 
+	}
 
-    //|| CHECK IF OKAY ||
-    // What is tempfd ? It is never declared. 
-    // You removed tempfd and then try to access it ? This will cause segmentation fault.
-    lock_destroy(filedesc->lock);
-    vfs_close(filedesc->vn);
-    kfree(filedesc); 
-    filedesc=NULL; 
-
-    
-  }
-    lock_release(locks);
-  //Step 4 - Use vfs_close()
- 
-  
-  
-  lock_destroy(locks);
-  
-  return 0;
+	return 0;
 }
 
-int sys_chdir(const char *newpath)
+int sys_chdir(char *newpath)
 {
 
-  //Step 3 - Use copyinstr() to copy the filepath to kernel memory.
-  int copyresult;
-  char *dest =kmalloc(sizeof(char));
-  
+	int result;
+	char *kernel_buffer = kmalloc(sizeof(char)*PATH_MAX);	
+	size_t actual;
 
-  // || CHECK IF OKAY ||
-  // You are using len on an empty char array ?
-  size_t len=PATH_MAX; 
-  size_t actual;
 
-  //|| CHECK IF OKAY ||
-  // What is filepath ?
-  copyresult=copyinstr((const_userptr_t) newpath, dest, len, &actual);
-  if(copyresult)
-    return copyresult;
-  //Step 4
-  int result;
-  result=vfs_chdir(dest);
+	result = copyinstr((const_userptr_t) newpath, kernel_buffer, PATH_MAX, &actual);
+	if(result)
+		return result;
 
-  if(result<0)
-    return EFAULT;
+	result = vfs_chdir(kernel_buffer);
 
-  return 0;
+	if(result)
+		return EFAULT;
+
+	return 0;
 }
 
 
 
-int sys_dup2(int oldfd,int newfd, int *retval)
+int sys_dup2(int oldfd, int newfd, int *retval)
 {
 
+	if(oldfd<0 || newfd<0 || curproc->p_fdtable[oldfd]==NULL)
+		return EBADF;
 
-  //Step 1 -  Check if newfd and old are valid          
-  if(oldfd<0 || newfd<0 || curproc->t_fdtable[oldfd]==NULL)
-    return EBADF;
+	if(oldfd==newfd)
+		return newfd;
 
-  //Step 3 - Check if both newfd and oldfd are the same.  
-  if(oldfd==newfd)
-    return newfd;
-
-  //Step 4 - Close the newfd using sys_close
-  if(curproc->t_fdtable[newfd]!=NULL)
-  {
-    
-    sys_close(newfd);
-    
-  }
-  else
-    curproc->t_fdtable[newfd]= kmalloc(sizeof(struct fdesc*));
+	if(curproc->p_fdtable[newfd]!=NULL)
+		sys_close(newfd);
 
 
-  //Step 5
-  lock_acquire(curproc->t_fdtable[oldfd]->lock);
-  //Step 6
-  curproc->t_fdtable[oldfd]->reference_count+=1;
+	lock_acquire(curproc->p_fdtable[oldfd]->lock);
+	curproc->p_fdtable[oldfd]->reference_count+=1;
 
-  //Step 7
-  curproc->t_fdtable[newfd]=curproc->t_fdtable[oldfd];
+	curproc->p_fdtable[newfd]=curproc->p_fdtable[oldfd];
 
-  //Step 8
-  lock_release(curproc->t_fdtable[oldfd]->lock);
-  *retval=newfd;
-  return 0;
+	lock_release(curproc->p_fdtable[oldfd]->lock);
 
+	*retval=newfd;
+
+	return 0;
 
 }

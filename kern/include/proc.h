@@ -72,11 +72,25 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
-	struct fdesc *t_fdtable[OPEN_MAX];
+	struct fdesc *p_fdtable[OPEN_MAX];
+
+	/* user process support */
+	pid_t pid;
+	pid_t ppid;
+
+	/* exit and waitpid support */
+	int exit_code;
+	bool exited;
+
+	struct semaphore * exit_sem;
+
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
+extern struct proc *proc_table[PID_MAX];
+extern struct lock *proc_table_lock;
+
 
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
