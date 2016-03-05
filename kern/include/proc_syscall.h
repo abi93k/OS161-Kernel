@@ -11,7 +11,8 @@
 
 void entrypoint(void* tf, unsigned long data);
 int sys_fork(struct trapframe* tf, int *retval);
-int sys_exit(int fd);
+int sys__exit(int fd);
+int sys_getpid(pid_t *pid);
 
 #endif
 

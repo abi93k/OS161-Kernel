@@ -17,6 +17,7 @@
 #include <file_syscall.h>
 #include <thread.h>
 #include <mips/trapframe.h>
+#include <kern/wait.h>
 
 
 
@@ -96,5 +97,27 @@ int sys_fork(struct trapframe* tf, int *retval)
 	}
 
 	*retval=0;
+	return 0;
+}
+
+
+/*
+*   ||TODO||
+* Find the pid in curproc and chnge the exit status
+* Get the exit code using _MKWAIT_EXIT
+* Check if parent has exited, if so find out what to do.	
+*/
+int sys__exit(int exitcode)
+{
+	
+		curproc->exit_code=_MKWAIT_EXIT(exitcode);
+		curproc->exited=true;
+		V(curproc->exit_sem);
+		return 0;
+}
+
+int sys_getpid(pid_t *pid)
+{
+	*pid=curproc->pid;
 	return 0;
 }
