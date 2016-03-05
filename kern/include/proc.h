@@ -92,6 +92,7 @@ extern struct proc *proc_table[PID_MAX];
 extern struct lock *proc_table_lock;
 
 
+
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
 
