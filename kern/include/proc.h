@@ -39,6 +39,8 @@
 #include <spinlock.h>
 #include <limits.h>
 
+ #define MAX_PROC 256
+
 struct addrspace;
 struct thread;
 struct vnode;
@@ -88,7 +90,7 @@ struct proc {
 
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
-extern struct proc *proc_table[PID_MAX];
+extern struct proc *proc_table[MAX_PROC];
 extern struct lock *proc_table_lock;
 
 
