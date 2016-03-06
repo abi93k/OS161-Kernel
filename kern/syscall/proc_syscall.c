@@ -21,103 +21,124 @@
 
 
 
-/*
-*    					||TODO||
-*
-* Step 1 - Createa new proc object and call create_proc
-* Step 2 -  Create a new trpframe object and copy it to kernel memory
-* Step 3 - Copy the addrspace ino the proc object->addrspace using as_copy
-* Step 4 -  Copy the parent trapframe to the new trapframe object
-* Step 5 - Find spot in proc_table and fill it with the child process
-* Step 6 -  Use thread_fork to create a child.
-* 
-*/
 
-
-void entrypoint(void* data1,unsigned long data2)
+void 
+entrypoint(void* tf,unsigned long junk)
 {
-	struct trapframe *tf1,tf2;
-	tf1 = (struct trapframe*)data1;
-	tf1->tf_v0=0;
-	tf1->tf_a3=0;
-	tf1->tf_epc+=4;
-	//int res_addthread=addthread(curproc,curthread);
-	//if(res_addthread)
-		//return res_addthread
-	data2++;
-	tf2=*tf1;
-	mips_usermode(&tf2);
+	junk ++;
+	
+	struct trapframe kernel_tf;
+	kernel_tf = *(struct trapframe *)tf;
+
+	kernel_tf.tf_v0=0;
+	kernel_tf.tf_a3=0;
+	kernel_tf.tf_epc+=4;
+
+	kfree(tf); // remove trap frame from kernel heap.
+
+	mips_usermode(&kernel_tf); // fallback to user mode	
 
 }
-int sys_fork(struct trapframe* tf, int *retval)
+
+int 
+sys_fork(struct trapframe* tf, int *retval)
 {
 
 
-	// Step 1 - Createa new proc object and call create_proc
-	struct proc *procs;
+	struct proc *child_proc = proc_create_runprogram("child_process");
+	if(child_proc==NULL)
+		return ENOMEM;
+	
+	as_copy(curproc->p_addrspace, &child_proc->p_addrspace);
 
-	procs = proc_create_runprogram("fork_proc");
-	if(procs==NULL)
+
+	/* TODO Copy file table properly here */
+	
+	struct trapframe *child_tf = kmalloc(sizeof(struct trapframe));
+	if(child_tf == NULL)
 		return ENOMEM;
 
-	// Step 3 - Copy the addrspace ino the proc object->addrspace using as_copy
-	int res_addrcopy;
-	res_addrcopy=as_copy(curproc->p_addrspace, &procs->p_addrspace);
-
-	if(res_addrcopy)
-	{
-		return res_addrcopy;
-	}
-
-	
-	// Step 2,4 - copy the trapframe to the child
-	struct trapframe *new_tf = kmalloc(sizeof(struct trapframe));
-	*new_tf=*tf;
 
 
-	//Step 5 - Find spot in proc_table and fill it with the child process
-	int i=3;
-	while(procs->p_fdtable[i]!=NULL && i<=OPEN_MAX)
-	{
-	procs->p_fdtable[i]=curproc->p_fdtable[i];
-	i++;
-	}
-	
-	procs->ppid=curproc->pid;
+	*child_tf = *tf;
+	child_proc->ppid = curproc->pid; // set parent pid
 
-	proc_table[procs->pid]=procs;
+	*retval = child_proc->pid;
 
-	//  Step 6 - Call thread_fork
-	int res_fork;
-	unsigned long dummy=0;
-	res_fork=thread_fork("TheChild", procs,entrypoint,(void *)new_tf,dummy);
-	if(res_fork)
-	{
-		return res_fork;
-	}
+	thread_fork("child_proc", child_proc, entrypoint, (void *)child_tf, 0);
 
-	*retval=0;
+
 	return 0;
 }
 
 
-/*
-*   ||TODO||
-* Find the pid in curproc and chnge the exit status
-* Get the exit code using _MKWAIT_EXIT
-* Check if parent has exited, if so find out what to do.	
-*/
-int sys__exit(int exitcode)
+
+
+int 
+sys_getpid(pid_t *pid)
+{
+	*pid=curproc->pid;
+	return 0;
+}
+
+int 
+sys__exit(int exitcode)
 {
 	
 		curproc->exit_code=_MKWAIT_EXIT(exitcode);
 		curproc->exited=true;
 		V(curproc->exit_sem);
-		return 0;
+		thread_exit();
 }
 
-int sys_getpid(pid_t *pid)
+
+int
+sys_waitpid(int pid, userptr_t status, int options, pid_t *retpid)
 {
-	*pid=curproc->pid;
+	int result;
+	struct proc *child_proc;
+
+	if(pid < 1 || pid >= PID_MAX) // PID starts from one
+		return ESRCH;
+
+	if (options != 0 && options != WNOHANG) // Can only be one of these two values.
+		return EINVAL;
+
+
+	child_proc = proc_table[pid];
+
+	if(((uintptr_t)status % 4) !=0 )
+		return EFAULT; 
+	
+	if (status == NULL)
+		return EFAULT;
+
+	if(child_proc == NULL)
+		return ESRCH;
+
+	if(child_proc->ppid != curproc->pid)
+		return ECHILD; // I am not his parent.
+
+	if(! child_proc->exited) { // If child has not exited already
+		if(options == WNOHANG) { // Return 0 if option is WNOHANG
+			*retpid = 0;
+			return 0;
+		}
+		else {
+			P(child_proc->exit_sem);  // wait for him to exit
+		}
+	}
+
+
+	result = copyout(&child_proc->exit_code, status, sizeof(int));
+
+	if(result)
+		return result;
+
+	*retpid = pid;
+
+	proc_destroy(child_proc); // Destroy child
+	proc_table[pid] = NULL;
 	return 0;
+
 }

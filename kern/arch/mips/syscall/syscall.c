@@ -116,6 +116,8 @@ syscall(struct trapframe *tf)
 	    uint64_t pos;
 	    int whence;
 	    off_t new_offset;
+		pid_t retpid;
+
 
 
 	    case SYS_open:
@@ -184,6 +186,12 @@ syscall(struct trapframe *tf)
 			retval = data_length;
 			break;
 
+		case SYS_waitpid:
+			err = sys_waitpid(tf->tf_a0, (userptr_t)tf->tf_a1, tf->tf_a2, &retpid);
+			retval = retpid;
+			break;
+
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -230,5 +238,9 @@ syscall(struct trapframe *tf)
 void
 enter_forked_process(struct trapframe *tf)
 {
-	(void)tf;
+	tf->tf_a3 = 0;
+	tf->tf_v0 = 0;
+
+	tf->tf_epc += 4;
+	mips_usermode(tf);
 }
