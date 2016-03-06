@@ -1,0 +1,27 @@
+name: fs
+print_name: FILE SYSTEM TESTS
+description: >
+  File system tests
+version: 1
+points: 55
+type: asst
+kconfig: ASST2
+userland: true
+tests:
+# Make sure the console works (10 points)
+  - id: syscalls/consoletest.t
+    points: 10
+# File system system calls (50 points)
+  - id: syscalls/opentest.t
+    points: 5
+  - id: syscalls/closetest.t
+    points: 5
+  - id: syscalls/readwritetest.t
+    points: 10
+  - id: syscalls/fileonlytest.t
+    points: 15
+  - id: syscalls/redirect.t
+    points: 10  
+
+
+
