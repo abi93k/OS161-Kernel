@@ -35,7 +35,7 @@ entrypoint(void* tf,unsigned long junk)
 	kernel_tf.tf_epc+=4;
 
 	kfree(tf); // remove trap frame from kernel heap.
-
+	as_activate();
 	mips_usermode(&kernel_tf); // fallback to user mode	
 
 }
@@ -110,9 +110,6 @@ sys_waitpid(int pid, userptr_t status, int options, pid_t *retpid)
 	if(((uintptr_t)status % 4) !=0 )
 		return EFAULT; 
 	
-	if (status == NULL)
-		return EFAULT;
-
 	if(child_proc == NULL)
 		return ESRCH;
 

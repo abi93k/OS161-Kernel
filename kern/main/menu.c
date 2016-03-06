@@ -42,10 +42,12 @@
 #include <syscall.h>
 #include <test.h>
 #include <prompt.h>
+#include <proc_syscall.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
 #include "opt-synchprobs.h"
 #include "opt-automationtest.h"
+
 
 /*
  * In-kernel menu and command dispatcher.
@@ -93,6 +95,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 			strerror(result));
+		sys__exit(0);
 		return;
 	}
 
@@ -133,7 +136,8 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-
+	pid_t pid;
+	sys_waitpid(proc->pid, (userptr_t) result, 0, &pid);
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.

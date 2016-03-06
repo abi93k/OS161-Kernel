@@ -203,6 +203,7 @@ proc_destroy(struct proc *proc)
 		}
 	}
 
+
 	proc_table[proc->pid] = NULL;
 
 	sem_destroy(proc->exit_sem);
