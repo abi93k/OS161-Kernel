@@ -8,6 +8,7 @@
 #include <file_syscall.h>
 #include <kern/errno.h>
 #include <kern/fcntl.h>
+#include <kern/unistd.h>
 #include <kern/seek.h>
 #include <vnode.h>
 #include <uio.h>
@@ -24,10 +25,12 @@
  	struct uio u;
  	int result;
 
- 	if (fd < 0 || fd > OPEN_MAX) 
+ 	if (fd < 0 || fd >= OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
 
 	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
+
+
 
 	if(p_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
@@ -37,7 +40,10 @@
 
 
 	lock_acquire(p_fd_entry->lock);
-
+	if(((p_fd_entry->flags & O_ACCMODE) != O_RDONLY) && ((p_fd_entry->flags & O_ACCMODE) != O_RDWR ))  {
+		lock_release(p_fd_entry->lock);
+		return EBADF;
+	}
 	/* from loadelf.c */
 	iov.iov_ubase = buf;					// read data goes into this buffer
 	iov.iov_len = buflen;					// length of memory space		 
@@ -72,7 +78,7 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 	struct uio u;
 	int result;
 
-	if (fd < 0 || fd > OPEN_MAX) 
+	if (fd < 0 || fd >= OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
 
 	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
@@ -85,7 +91,10 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 
 
 	lock_acquire(p_fd_entry->lock);
-
+	if((p_fd_entry->flags & O_ACCMODE) != O_WRONLY && (p_fd_entry->flags & O_ACCMODE) != O_RDWR )  {
+		lock_release(p_fd_entry->lock);
+		return EBADF;
+	}
 	/* from loadelf.c */
 	iov.iov_ubase = buf;					// data to be written to the file
 	iov.iov_len = buflen;					// length of memory space		 
@@ -120,8 +129,10 @@ sys_lseek(int fd, off_t pos, int whence, off_t *new_offset)
 	struct stat f_stat;
 	int result;
 
-	if (fd < 0 || fd > OPEN_MAX) 
+	if (fd < 0 || fd >= OPEN_MAX) 
 		return EBADF; 								// not a valid file descriptor
+
+
 
 	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
 
@@ -147,13 +158,15 @@ sys_lseek(int fd, off_t pos, int whence, off_t *new_offset)
 		offset = f_stat.st_size + pos;				// end of file + position
 	}
 	
-	if(offset < 0)
+	if(offset < 0) {
+		lock_release(p_fd_entry->lock);
 		return EINVAL;								// the resulting seek position would be negative.
+	}
 
 	result = VOP_ISSEEKABLE(p_fd_entry->vn);
 	if(!result) {
 		lock_release(p_fd_entry->lock);
-		return result;
+		return ESPIPE;
 	}
 	p_fd_entry->offset = offset;
 	*new_offset = offset;
@@ -213,7 +226,8 @@ int sys_open(char *filepath, int flags, mode_t mode, int *retval)
 	if(result)
 		return result;
 
-	result = vfs_open(filepath,flags,mode,&p_fd_entry->vn);
+	result = vfs_open(kernel_buffer,flags,mode,&p_fd_entry->vn);
+	kfree(kernel_buffer);
 	if(result)
 		return result;
 
@@ -251,7 +265,7 @@ int sys_open(char *filepath, int flags, mode_t mode, int *retval)
 int sys_close(int fd)
 {
 
-	if(fd < 0 || fd > OPEN_MAX)
+	if(fd < 0 || fd >= OPEN_MAX)
 		return EBADF;
 
 	struct fdesc* p_fd_entry = curproc->p_fdtable[fd]; 
@@ -287,6 +301,7 @@ int sys_chdir(char *newpath)
 		return result;
 
 	result = vfs_chdir(kernel_buffer);
+	kfree(kernel_buffer);
 
 	if(result)
 		return EFAULT;
@@ -299,11 +314,17 @@ int sys_chdir(char *newpath)
 int sys_dup2(int oldfd, int newfd, int *retval)
 {
 
-	if(oldfd<0 || newfd<0 || curproc->p_fdtable[oldfd]==NULL)
+	if(oldfd<0 || newfd<0 || oldfd >= OPEN_MAX || newfd >= OPEN_MAX )
 		return EBADF;
 
-	if(oldfd==newfd)
-		return newfd;
+	if(curproc->p_fdtable[oldfd] == NULL)
+		return EBADF;
+
+	if(oldfd==newfd) {
+		*retval=newfd;
+		return 0;
+
+	}
 
 	if(curproc->p_fdtable[newfd]!=NULL)
 		sys_close(newfd);

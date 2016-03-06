@@ -54,7 +54,7 @@
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
-struct proc *proc_table[PID_MAX];
+struct proc *proc_table[MAX_PROC];
 struct lock *proc_table_lock;
 
 /*
@@ -100,7 +100,7 @@ proc_create(const char *name)
 
 	/* assigning process id */
 
-	for(pid_t i = 1; i<PID_MAX; i++) {
+	for(pid_t i = 1; i<MAX_PROC; i++) {
 		if(proc_table[i] == NULL) {
 			proc->pid = i;
 			break;
@@ -223,7 +223,7 @@ proc_bootstrap(void)
 {
 	/* initialize global process table */
 
-	for (pid_t pid = 0; pid < PID_MAX; pid++) {
+	for (pid_t pid = 0; pid < MAX_PROC; pid++) {
 		proc_table[pid] = NULL;
 	}
 
