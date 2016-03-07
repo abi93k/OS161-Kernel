@@ -197,11 +197,8 @@ proc_destroy(struct proc *proc)
 
 
 	/* Free file table*/
-	for (int i = 0; i < OPEN_MAX; i++) {
-		if (proc->p_fdtable[i] != NULL) {
-			kfree(proc->p_fdtable[i]);
-		}
-	}
+	
+	/* Do not kfree file table entries. My children might be pointing to them */
 
 
 	proc_table[proc->pid] = NULL;

@@ -52,7 +52,12 @@ sys_fork(struct trapframe* tf, int *retval)
 	as_copy(curproc->p_addrspace, &child_proc->p_addrspace);
 
 
-	/* TODO Copy file table properly here */
+	for( int i=0; i < OPEN_MAX; i++) {
+		if( curproc->p_fdtable[i] != NULL  ) {
+			curproc -> p_fdtable[i] -> reference_count ++;
+			child_proc -> p_fdtable[i] = curproc -> p_fdtable[i];
+		}
+	}
 	
 	struct trapframe *child_tf = kmalloc(sizeof(struct trapframe));
 	if(child_tf == NULL)
@@ -85,13 +90,13 @@ int
 sys__exit(int exitcode)
 {
 	
-	if(proc_table[curproc->ppid]->exited==false)
+	if(proc_table[curproc->ppid]->exited==false) 
 	{
 		curproc->exit_code=_MKWAIT_EXIT(exitcode);
 		curproc->exited=true;
 		V(curproc->exit_sem);
 	}
-	else
+	else // My parent has exited, I'll just kill myself.
 	{
 		proc_destroy(curproc);
 	}	
