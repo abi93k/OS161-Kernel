@@ -85,10 +85,17 @@ int
 sys__exit(int exitcode)
 {
 	
+	if(proc_table[curproc->ppid]->exited==false)
+	{
 		curproc->exit_code=_MKWAIT_EXIT(exitcode);
 		curproc->exited=true;
 		V(curproc->exit_sem);
-		thread_exit();
+	}
+	else
+	{
+		proc_destroy(curproc);
+	}	
+	thread_exit();
 }
 
 
