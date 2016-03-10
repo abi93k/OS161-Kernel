@@ -184,8 +184,9 @@ int sys_execv(char *program, char **args) {
 	int i = 0;
 
 	int result;
-	char kern_program[NAME_MAX];
-	result = copyinstr((userptr_t)program, kern_program, NAME_MAX, NULL);
+	char *kern_program = (char*)kmalloc(sizeof(char)*PATH_MAX);
+
+	result = copyinstr((userptr_t)program, kern_program, PATH_MAX, NULL);
 	if (result)
 		return result;
 
@@ -198,30 +199,41 @@ int sys_execv(char *program, char **args) {
 	}
 
 	// Copy args to kernel args
-	char ** kargs = (char **)kmalloc(sizeof(char**));
-	if(kargs == NULL)
+	char ** kargs = (char **)kmalloc(sizeof(char*)*argc);
+
+	if(kargs == NULL) {
+		kfree(kern_program);
 		return ENOMEM;
-	result = copyin((const_userptr_t) args, kargs, sizeof(char **));
-	if(result)
-		return result;
+	}
+
+	
+	char *temp = kmalloc(sizeof(char) * ARG_MAX);
+
 	size_t size;
 	while (args[i] != NULL ) {
-		if((args[i] == (void*) 0x40000000) || (args[i] == (char*)0x80000000)){
+		if((args[i] == (void*) 0x400000000) || (args[i] == (char*)0x80000000)){ // badcall.
 			kfree(kargs);
 			return EFAULT;
-		}
+		}	
+		/* just to find the actual strlen of the arg, 
+		   so that we don't have to  allocate unneccesarily 
+		   large memory chunk. suggested by Guru.
+		*/
+		result = copyinstr((userptr_t)args[i], temp, ARG_MAX, &size); 	 	
+		if (result) {
 
-		kargs[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
-		if(kargs[i] == NULL) {
-			kfree(kargs);
-			return ENOMEM;
+			return result;
 		}
+		kargs[i] = (char *)kmalloc(sizeof(char)*(size));
 
-		result = copyinstr((const_userptr_t) args[i], kargs[i], PATH_MAX, &size);
+		result = copyinstr((const_userptr_t) args[i], kargs[i], ARG_MAX ,&size);
 
 		i++;
 	}
+	kfree(temp); 
+
 	kargs[i] = NULL;
+	
 		
 
 
@@ -233,21 +245,26 @@ int sys_execv(char *program, char **args) {
 
 	/* Open the file. */
 	result = vfs_open(kern_program, O_RDONLY, 0, &v);
+	kfree(kern_program);
 	if (result) {
 		for(i=0;i<argc;i++)
 			kfree(kargs[i]);
+
 		kfree(kargs);
 		return result;
 	}
 
 	/* We should be a new process. */
+	
+	struct addrspace * parent_as = proc_getas();
+	as_deactivate();
+	as_destroy(parent_as);
+
 	//KASSERT(proc_getas() == NULL);
 
 	/* Create a new address space. */
 	as = as_create();
 	if (as == NULL) {
-		for(i=0;i<argc;i++)
-			kfree(kargs[i]);
 		kfree(kargs);
 		vfs_close(v);
 		return ENOMEM;
@@ -257,13 +274,14 @@ int sys_execv(char *program, char **args) {
 	proc_setas(as);
 	as_activate();
 
+
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);
 	if (result) {
 		/* p_addrspace will go away when curproc is destroyed */
 		for(i=0;i<argc;i++)
 			kfree(kargs[i]);
-		kfree(kargs);
+
 		vfs_close(v);
 		return result;
 	}
@@ -283,61 +301,75 @@ int sys_execv(char *program, char **args) {
 	/* end runprogram.c */
 	
 	// Calculate lengths and offsets for stack pointer
-	int args_length[argc];
-	int args_padded_length[argc]; // padding + null terminator
-	int args_offset[argc+1];
-	args_offset[0] = 4*(argc+1); // first arg starts at this offset
+	/*
 	int total_length = 0;
 
 	i = 0;
 	while(kargs[i] != NULL) {
-		args_length[i] = strlen(kargs[i]);
-		if(! ((args_length[i]+1) % 4 == 0)) 
-			args_padded_length[i] = ((args_length[i] + 1)+3) / 4 * 4 ;
-		else
-			args_padded_length[i] = args_length[i]+1;
-
-		args_offset[i+1] = args_offset[i] + args_padded_length[i];
+		//kprintf("Calculating [%d] \n\n",i);
+		int arg_length = strlen(kargs[i]);
+		int padded_length = ((arg_length + 1)+3) / 4 * 4;
+		total_length += padded_length;
 		i++;
 
 	}
-	total_length = args_offset[argc]; // clever hack
-
+	total_length += (argc+1)*4;
 	// Dispatching kargs to stack pointer
-	stackptr -= total_length;
+	//kprintf(" Dispatching ... \n\n");
+	stackptr -= total_length ;
 	char* uargs[argc+1]; 
+	int offset = (argc+1)*4;
 
 	for( i=0; i<argc; i++) {
-		char * dest = (char *)stackptr+args_offset[i];
+		int arg_length = strlen(kargs[i]);
 
-		result = copyout(kargs[i],(userptr_t)dest,(size_t)args_length[i]+1);
+		int padded_length = ((arg_length + 1)+3) / 4 * 4;
+
+		char * dest = (char *)stackptr+offset;
+
+		result = copyout(kargs[i],(userptr_t)dest,(size_t)arg_length+1);
+
 		if (result) {
-			for(i=0;i<argc;i++)
-				kfree(kargs[i]);
 			kfree(kargs);
 			return result;
 		}
-		for (int j = args_length[i]; j < args_padded_length[i] ; j++)
+		for (int j = arg_length; j < padded_length ; j++) {
 			dest[j] = '\0';
-		
+		}
 		uargs[i] = (char *)dest;
-		//kfree(dest);
+		offset += padded_length;
+
 	}
 	uargs[argc] = NULL;
 
 	result = copyout(uargs,(userptr_t)stackptr, sizeof(uargs));
 	if (result) {
-		for(i=0;i<argc;i++)
-			kfree(kargs[i]);
+
 		kfree(kargs);
 		return result;
 	}
+	*/
+	/* suggested by Guru. */
+	userptr_t *uargs = NULL;
 
+	stackptr -= (argc + 1) * (sizeof(char*));
+
+	uargs = (userptr_t*)stackptr;
+
+	for(int i = 0; i < argc; i++ ) {
+		stackptr -= (strlen(kargs[i]) + 1);
+		uargs[i] = (userptr_t)stackptr;
+		copyout(kargs[i], uargs[i],strlen(kargs[i]) + 1);
+	}
+
+	uargs[argc] = NULL;
 	for(i=0;i<argc;i++)
 		kfree(kargs[i]);
+
 	kfree(kargs);
+
 	/* Warp to user mode. */
-	enter_new_process(argc, (userptr_t)stackptr /*userspace addr of argv*/,
+	enter_new_process(argc, (userptr_t)uargs /*userspace addr of argv*/,
 				NULL /*userspace addr of environment*/,
 			  stackptr, entrypoint);
 	/* enter_new_process does not return. */
