@@ -62,7 +62,8 @@ struct coremap_enrty
 	pid_t owner;
 };
 
-
+struct coremap_entry* coremap;
+struct spinlock coremap_lock;
   
 /* Initialization function */
 void vm_bootstrap(void);
