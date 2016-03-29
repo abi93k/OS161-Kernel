@@ -64,6 +64,10 @@ struct coremap_enrty
 
 struct coremap_entry* coremap;
 struct spinlock coremap_lock;
+
+int no_of_physical_pages;
+int no_of_coremap_entries;
+int free_page_start;
   
 /* Initialization function */
 void vm_bootstrap(void);
