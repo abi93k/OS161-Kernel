@@ -105,8 +105,26 @@ void
 free_kpages(vaddr_t addr)
 {
 	/* TODO Write this */
+    int i,index;
+    paddr_t pa= KVADDR_TO_PADDR(addr);
+    index=PADDR_TO_CM(pa);
 
-	(void)addr;
+    spinlock_acquire(&coremap_lock);
+    // get chunk_size 
+    int chunk_size = coremap[index].chunk_size;
+
+    for(i=index;i<index+chunk_size;i++) {
+    	coremap[i].state=FREE;
+
+     
+    }
+
+    coremap_used -= (PAGE_SIZE * coremap[index].chunk_size);
+    //addressspace object to check if mapped to userspace ?
+    // needs to be unmapped if previously mapped to user mempory
+
+    spinlock_release(&coremap_lock);
+	//(void)addr;
 }
 
 unsigned
