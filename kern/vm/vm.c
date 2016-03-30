@@ -7,36 +7,38 @@
 #include <proc.h>
 #include <current.h>
 #include <mips/tlb.h>
+#include <synch.h>
 #include <vm.h>
 
 /*
  * VM system
  */
-
+  
 void
 vm_bootstrap(void)
 {
 	spinlock_init(&coremap_lock);
 
-	paddr_t fpaddr, lpaddr, new_fpaddr;
-	int coremap_size;
+	paddr_t fpaddr, lpaddr;
+	uint32_t coremap_size;
 
-	fpaddr = ram_getfirstfree();	
 	lpaddr = ram_getsize();	
+	fpaddr = ram_getfirstfree();	
 
 	no_of_physical_pages = (lpaddr-fpaddr) / PAGE_SIZE; // We do not consider the memory stolen by kernel during boot.
 														// Should we ?
 	
 	coremap_size = no_of_physical_pages * sizeof(struct coremap_entry);
 	coremap_size = ROUNDUP(coremap_size, PAGE_SIZE);
+	KASSERT((coremap_size & PAGE_FRAME) == coremap_size);
 
 	coremap = (struct coremap_entry *)PADDR_TO_KVADDR(fpaddr); // Placing the coremap at first available physical address.
 
-	new_fpaddr = fpaddr + coremap_size; // Moving my fpaddr to accomadate the coremap.
+	fpaddr = fpaddr + coremap_size; // Moving my fpaddr to accomadate the coremap.
 
-	no_of_coremap_entries = (lpaddr - new_fpaddr) / PAGE_SIZE; // Absurd to store pages containing coremap in coremap.
+	no_of_coremap_entries = (lpaddr - fpaddr) / PAGE_SIZE; // Absurd to store pages containing coremap in coremap.
 
-	free_page_start = new_fpaddr / PAGE_SIZE; // First free page. This page maps to 0th entry of coremap.
+	free_page_start = fpaddr / PAGE_SIZE; // First free page. This page maps to 0th entry of coremap.
 
 	for (int i=0; i<no_of_coremap_entries;i++){
 
@@ -54,11 +56,49 @@ vm_bootstrap(void)
 vaddr_t
 alloc_kpages(unsigned npages)
 {
-	/* TODO Write this */
+	int required_pages = (int) npages;
+	int available_pages;
+	int start = -1;
 
-	(void)npages;
+	spinlock_acquire(&coremap_lock);
 
-	return 0;
+	for(int i = 0; i < no_of_coremap_entries; i++) {
+		available_pages = 0;
+		if(coremap[i].state == FREE) {
+			for(int j = i; j < i + required_pages; j++) {
+				if(coremap[j].state == FREE) {
+					available_pages ++;
+				}
+				else {
+					break;
+				}
+			}
+			if(available_pages == required_pages) {
+				start = i;
+				coremap[i].chunk_size = required_pages;
+				coremap[i].state = DIRTY;
+
+				break;
+			}
+		}
+
+	}
+
+	if(available_pages != required_pages) {
+		spinlock_release(&coremap_lock);
+		return 0;
+	}
+	else {
+		for(int i = start+1; i < coremap[start].chunk_size; i++) {
+			coremap[i].state = DIRTY;
+		}
+	}
+
+	coremap_used += PAGE_SIZE * required_pages;
+	spinlock_release(&coremap_lock);
+
+	paddr_t r = CM_TO_PADDR(start);
+	return PADDR_TO_KVADDR(r);
 }
 
 void
@@ -73,9 +113,7 @@ unsigned
 int
 coremap_used_bytes() 
 {
-	/* TODO Write this */
-
-	return 0;
+	return coremap_used;
 }
 
 void
