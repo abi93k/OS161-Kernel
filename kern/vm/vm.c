@@ -89,7 +89,7 @@ alloc_kpages(unsigned npages)
 		return 0;
 	}
 	else {
-		for(int i = start+1; i < coremap[start].chunk_size; i++) {
+		for(int i = start+1; i < start + coremap[start].chunk_size; i++) {
 			coremap[i].state = DIRTY;
 		}
 	}
