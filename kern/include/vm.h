@@ -38,6 +38,7 @@
 
 
 #include <machine/vm.h>
+#include <synch.h>
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
@@ -54,7 +55,7 @@ enum page_state
 	CLEAN
 };
 
-struct coremap_enrty 
+struct coremap_entry 
 {
 	vaddr_t vm_addr;		
 	enum page_state state;
@@ -64,7 +65,15 @@ struct coremap_enrty
 
 struct coremap_entry* coremap;
 struct spinlock coremap_lock;
-  
+
+uint32_t no_of_physical_pages;
+uint32_t coremap_used;
+int no_of_coremap_entries;
+int free_page_start;
+
+#define CM_TO_PADDR(i) ((paddr_t)PAGE_SIZE * (i + free_page_start))
+#define PADDR_TO_CM(paddr)  ((paddr / PAGE_SIZE) - free_page_start)
+
 /* Initialization function */
 void vm_bootstrap(void);
 
