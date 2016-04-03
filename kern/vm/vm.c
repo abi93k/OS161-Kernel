@@ -104,9 +104,20 @@ alloc_kpages(unsigned npages)
 void
 free_kpages(vaddr_t addr)
 {
-	/* TODO Write this */
+    int i,index;
+    paddr_t pa= KVADDR_TO_PADDR(addr);
+    index=PADDR_TO_CM(pa);
 
-	(void)addr;
+    spinlock_acquire(&coremap_lock);
+    int chunk_size = coremap[index].chunk_size;
+
+    for(i=index;i<index+chunk_size;i++) {
+    	coremap[i].state=FREE;
+    }
+
+    coremap_used -= (PAGE_SIZE * coremap[index].chunk_size);
+
+    spinlock_release(&coremap_lock);
 }
 
 unsigned
