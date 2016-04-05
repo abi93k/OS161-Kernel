@@ -41,6 +41,14 @@
  */
 
 struct addrspace *
+
+/* |||||||||||TODO|||||||||||
+	Step 1: Create address space object and check for null -DONE
+	Step 2: Assign all the structure elements to initial value -DONE
+	Step 3: Check if type cast is required for vaddr objects(heap_start,heap_end)
+		
+*/
+struct addrspace *
 as_create(void)
 {
 	struct addrspace *as;
@@ -53,6 +61,12 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
+
+	 as->pagetable=NULL;
+	 as->regions=NULL;
+	 as->heap_start=0;
+	 as->heap_end=0;
+
 
 	return as;
 }
