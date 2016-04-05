@@ -62,8 +62,12 @@ as_create(void)
 	 * Initialize as needed.
 	 */
 
+	 //TODO - Add any initialization functions defined in the pte structure
 	 as->pagetable=NULL;
+
+	 //TODO - Add any initialization functions defined in the regions structure
 	 as->regions=NULL;
+
 	 as->heap_start=0;
 	 as->heap_end=0;
 
@@ -91,12 +95,23 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
+
+
+/* |||||||||||TODO|||||||||||
+	Step 1: Free all present pages
+	Step 2: Free all swapped pages
+	
+		
+*/
 void
 as_destroy(struct addrspace *as)
 {
 	/*
 	 * Clean up as needed.
 	 */
+
+	 //Run through all the pages and free them
+	 
 
 	kfree(as);
 }
@@ -164,6 +179,8 @@ as_prepare_load(struct addrspace *as)
 	 * Write this.
 	 */
 
+	 //Run through the region's page table and change permission to readwrite
+
 	(void)as;
 	return 0;
 }
@@ -174,6 +191,8 @@ as_complete_load(struct addrspace *as)
 	/*
 	 * Write this.
 	 */
+	 //Run through the region's page table and change permission to original value
+	 //original value ?
 
 	(void)as;
 	return 0;
@@ -190,6 +209,8 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 	/* Initial user-level stack pointer */
 	*stackptr = USERSTACK;
+
+	//Return USERSTACKTOP
 
 	return 0;
 }
