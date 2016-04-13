@@ -48,6 +48,7 @@ struct region {
     vaddr_t base;
     size_t size;
     int permission;
+    int original_permission;
 };
 
 /*
@@ -140,5 +141,10 @@ int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
 
+
+/*
+ * Helpers 
+ */
+void regions_cleanup(struct addrspace *as, int no_of_regions);
 
 #endif /* _ADDRSPACE_H_ */

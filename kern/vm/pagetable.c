@@ -1,5 +1,12 @@
+#include <types.h>
+#include <kern/errno.h>
+#include <lib.h>
+#include <setjmp.h>
+#include <thread.h>
+#include <current.h>
+#include <vm.h>
+#include <copyinout.h>
 #include <pagetable.h>
-
 
 /*	Implementation of two-level page tables 
 	First 10 bits of virtual address points to the first level page table.

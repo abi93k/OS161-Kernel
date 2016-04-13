@@ -153,6 +153,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
 	(void)faulttype;
 	(void)faultaddress;
+	return 0;
 
 }
 

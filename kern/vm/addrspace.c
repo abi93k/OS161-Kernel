@@ -33,6 +33,11 @@
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
+#include <array.h>
+#include <spl.h>
+#include <mips/tlb.h>
+#include <pagetable.h>
+
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -82,8 +87,11 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 	// copy regions
 
-	no_of_regions = array_num(old->regions);
-	for (i = 0; i < no_of_regions; i++) {
+	struct region * old_region;
+	struct region * new_region;
+
+	int no_of_regions = array_num(old->regions);
+	for (int i = 0; i < no_of_regions; i++) {
 		old_region = array_get(old->regions, i);
 		new_region = kmalloc(sizeof(struct region));
 		if (old_region == NULL || new_region == NULL) {
@@ -95,7 +103,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		new_region->size = old_region->size;
 		new_region->permission = old_region->permission;
 
-		errno = array_add(newas->regions, new_region, NULL);
+		int errno = array_add(newas->regions, new_region, NULL);
 		if (errno) {
 			regions_cleanup(newas,no_of_regions);
 			return ENOMEM;
@@ -121,12 +129,12 @@ as_destroy(struct addrspace *as)
     int num_of_regions = array_num(as->regions);
     struct region *region_ptr;
 
-    i = len - 1;
+    int i = num_of_regions - 1;
 
-    while (i > = 0){
+    while (i >= 0){
         region_ptr = array_get(as->regions, i);
         kfree(region_ptr);
-        array_remove(as->as_regions, i);
+        array_remove(as->regions, i);
         i--;
     }
 
@@ -198,11 +206,11 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	struct region *region;
 
 	/* Align the region. First, the base... */
-	sz += vaddr & ~(vaddr_t)PAGE_FRAME;
+	memsize += vaddr & ~(vaddr_t)PAGE_FRAME;
 	vaddr &= PAGE_FRAME;
 
 	/* ...and now the length. */
-	sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
+	memsize = (memsize + PAGE_SIZE - 1) & PAGE_FRAME;
 
 	region = kmalloc(sizeof(struct region));
 
@@ -210,12 +218,12 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 		return ENOMEM;
 
 	region->base = vaddr;
-	region->size = sz;
+	region->size = memsize;
 	region->permission = readable + writeable + executable;
 
-	array_add(as->as_regions, region, NULL);
+	array_add(as->regions, region, NULL);
 
-	as->heap_start = vaddr + sz;
+	as->heap_start = vaddr + memsize;
 	as->heap_end = as->heap_start;
 
 	return 0;
@@ -229,10 +237,12 @@ as_prepare_load(struct addrspace *as)
 	 */	
 
 	 int num_of_regions=(int)array_num(as->regions);
+	 struct region * region_ptr;
 
 	 for(int i=0;i<num_of_regions;i++)
 	 {
-	 	as->regions[i]->permission= READ | WRITE;
+	 	region_ptr = (struct region *)array_get(as->regions,i);
+	 	region_ptr->permission= READ | WRITE;
 	 }
 
 	return 0;
@@ -246,10 +256,12 @@ as_complete_load(struct addrspace *as)
 	 */
 	 
 	 int num_of_regions=(int)array_num(as->regions);
+	 struct region * region_ptr;
 
 	 for(int i=0;i<num_of_regions;i++)
 	 {
-	 	as->regions[i]->permission = as->regions[i]->original_permission;
+	 	region_ptr = (struct region *)array_get(as->regions,i);
+	 	region_ptr->permission = region_ptr->original_permission;
 	 }
 
 	return 0;
@@ -264,6 +276,8 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 	*stackptr = USERSTACK;
 
+	(void)as;
+
 	return 0;
 }
 
@@ -271,12 +285,12 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 /* helper */
 
 void regions_cleanup(struct addrspace *as, int no_of_regions) {
-		struct * region;
-		for (i=0; i < no_of_regions; i++){
+		struct region *region_ptr;
+		for (int i=0; i < no_of_regions; i++){
 
-			region = (struct region *)array_get(as->regions,i);
-			if (new_region != NULL)
-				kfree(region);
+			region_ptr = (struct region *)array_get(as->regions,i);
+			if (region_ptr != NULL)
+				kfree(region_ptr);
 			}
 }
 

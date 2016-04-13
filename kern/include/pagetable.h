@@ -1,8 +1,3 @@
-#ifndef _PAGETABLE_H_
-#define _PAGETABLE_H_
-
-#include <vm.h>
-#include <addrspace.h>
 #include <synch.h>
 
 struct addrspace;
@@ -17,7 +12,6 @@ struct pte {
 #define MAX_PTE 1024
 
 
-struct pte ** pagetable_create();
-void pagetable_destroy();
+struct pte ** pagetable_create(void);
+void pagetable_destroy(void);
 
-#endif
