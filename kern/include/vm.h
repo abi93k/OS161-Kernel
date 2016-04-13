@@ -39,11 +39,15 @@
 
 #include <machine/vm.h>
 #include <synch.h>
+#include <pagetable.h>
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
+
+
+#define PAGE_FRAME 0xfffff000   /* mask for getting page number from addr */
 
  /* Coremap */
 
@@ -58,6 +62,7 @@ enum page_state
 struct coremap_entry 
 {
 	vaddr_t vm_addr;		
+	struct addrspace *as;
 	enum page_state state;
 	int chunk_size;
 	pid_t owner;
@@ -95,5 +100,7 @@ unsigned int coremap_used_bytes(void);
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
 
+
+vaddr_t page_alloc(struct addrspace *as, vaddr_t va);
 
 #endif /* _VM_H_ */

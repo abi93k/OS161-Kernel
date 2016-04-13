@@ -9,6 +9,7 @@
 #include <mips/tlb.h>
 #include <synch.h>
 #include <vm.h>
+#include <pagetable.h>
 
 /*
  * VM system
@@ -44,8 +45,9 @@ vm_bootstrap(void)
 
 		coremap[i].vm_addr = 0;
 		coremap[i].state = FREE;
-		coremap[i].chunk_size = 1;
+		coremap[i].chunk_size = -1;
 		coremap[i].owner = -1;
+		coremap[i].as = NULL;
 
 	}
 
@@ -77,6 +79,7 @@ alloc_kpages(unsigned npages)
 				start = i;
 				coremap[i].chunk_size = required_pages;
 				coremap[i].state = DIRTY;
+				coremap[i].as = NULL;
 
 				break;
 			}
@@ -91,6 +94,7 @@ alloc_kpages(unsigned npages)
 	else {
 		for(int i = start+1; i < start + coremap[start].chunk_size; i++) {
 			coremap[i].state = DIRTY;
+			coremap[i].as = NULL;
 		}
 	}
 
@@ -144,12 +148,41 @@ vm_tlbshootdown(const struct tlbshootdown *ts)
 int
 vm_fault(int faulttype, vaddr_t faultaddress)
 {
+
 	/* TODO Write this */
 
 	(void)faulttype;
 	(void)faultaddress;
 
-	return 0;
+}
+
+
+
+vaddr_t page_alloc(struct addrspace *as, vaddr_t vaddr) {
+	(void)vaddr;
+	spinlock_acquire(&coremap_lock);
+
+	for(int i = 0; i < no_of_coremap_entries; i++) {
+
+		if(coremap[i].state == FREE) {
+
+			coremap[i].state = DIRTY;
+			coremap[i].chunk_size = 1;
+			coremap[i].as = as;
+			coremap[i].owner = curproc->pid;
+			
+			coremap_used += PAGE_SIZE;
+
+			spinlock_release(&coremap_lock);
+			return PADDR_TO_KVADDR(CM_TO_PADDR(i));
+		}
+
+
+	}
+
+	spinlock_release(&coremap_lock);
+	return -1;
+
 }
 
 
