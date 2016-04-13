@@ -40,14 +40,7 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
-struct addrspace *
 
-/* |||||||||||TODO|||||||||||
-	Step 1: Create address space object and check for null -DONE
-	Step 2: Assign all the structure elements to initial value -DONE
-	Step 3: Check if type cast is required for vaddr objects(heap_start,heap_end)
-		
-*/
 struct addrspace *
 as_create(void)
 {
@@ -62,15 +55,10 @@ as_create(void)
 	 * Initialize as needed.
 	 */
 
-	 //TODO - Add any initialization functions defined in the pte structure
-	 as->pagetable=NULL;
-
-	 //TODO - Add any initialization functions defined in the regions structure
-	 as->regions=NULL;
-
-	 as->heap_start=0;
-	 as->heap_end=0;
-
+	as->pagetable=pagetable_create();
+	as->regions=array_create();
+	as->heap_start=0;
+	as->heap_end=0;
 
 	return as;
 }
@@ -95,14 +83,6 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
-
-
-/* |||||||||||TODO|||||||||||
-	Step 1: Free all present pages
-	Step 2: Free all swapped pages
-	
-		
-*/
 void
 as_destroy(struct addrspace *as)
 {
@@ -110,27 +90,24 @@ as_destroy(struct addrspace *as)
 	 * Clean up as needed.
 	 */
 
-	 //Run through all the pages and free them
-	 //Run through all the regisona nd empty them
-	 as->heap_start=0;
-	 as->heap_end=0;
+    // TODO Destroy page table.
 
-	 //TODO remvoe page from physical memory
+    int num_of_regions = array_num(as->regions);
+    struct region *region_ptr;
 
-	 int i;
-	 int region_size=(int)array_num(as->regions);
+    i = len - 1;
 
-	 for(i=0;i<region_size;i++)
-	 {
-	 	array_remove(as->regions,i);
-	 }
+    while (i > = 0){
+        region_ptr = array_get(as->regions, i);
+        kfree(region_ptr);
+        array_remove(as->as_regions, i);
+        i--;
+    }
 
-	 // Is this required? 
-	 array_destroy(as->regions); 
+    array_destroy(as->regions);
 
-	  
+    kfree(as);
 
-	kfree(as);
 }
 
 void
@@ -150,6 +127,8 @@ as_activate(void)
 	/*
 	 * Write this.
 	 */
+
+
 }
 
 void
@@ -160,9 +139,6 @@ as_deactivate(void)
 	 * anything. See proc.c for an explanation of why it (might)
 	 * be needed.
 	 */
-	
-	
-
 }
 
 /*
@@ -199,21 +175,13 @@ as_prepare_load(struct addrspace *as)
 	 * Write this.
 	 */	
 
-	 //Run through the region's page table and change permission to readwrite
+	 int num_of_regions=(int)array_num(as->regions);
 
-	 //struct region *region_obj;
-	 //region_obj=as->regions;
-	 
-	 int i;
-	 int region_size=(int)array_num(as->regions);
-
-	 for(i=0;i<region_size;i++)
+	 for(int i=0;i<num_of_regions;i++)
 	 {
-	 	as->regions[i]->permission= READ_WRITE;
+	 	as->regions[i]->permission= READ | WRITE;
 	 }
 
-	
-	(void)as;
 	return 0;
 }
 
@@ -223,22 +191,14 @@ as_complete_load(struct addrspace *as)
 	/*
 	 * Write this.
 	 */
-	 //Run through the region's page table and change permission to original value
-	 //original value ?
-
-     //struct region *region_obj;
-	 //region_obj=as->regions;
 	 
-	 int i;
-	 int region_size=(int)array_num(as->regions);
+	 int num_of_regions=(int)array_num(as->regions);
 
-	 for(i=0;i<region_size;i++)
+	 for(int i=0;i<num_of_regions;i++)
 	 {
-	 	as->regions[i]->permission= WRITE_ONLY;
+	 	as->regions[i]->permission = as->regions[i]->original_permission;
 	 }
 
-	
-	(void)as;
 	return 0;
 }
 
@@ -249,12 +209,7 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 	 * Write this.
 	 */
 
-	(void)as;
-
-	/* Initial user-level stack pointer */
 	*stackptr = USERSTACK;
-
-	//Return USERSTACKTOP
 
 	return 0;
 }

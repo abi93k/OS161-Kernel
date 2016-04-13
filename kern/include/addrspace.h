@@ -29,9 +29,9 @@
 
 #ifndef _ADDRSPACE_H_
 #define _ADDRSPACE_H_
-#define READONLY 0
-#define WRITE_ONLY 1
-#define READ_WRITE 2
+#define READ 0
+#define WRITE 1
+#define EXECUTE 2
 
 /*
  * Address space structure and operations.
