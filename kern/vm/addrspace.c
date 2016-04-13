@@ -112,6 +112,19 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 
 	// copy page table
 
+	for (int i = 0; i < MAX_PTE; i++){
+		if (old->pagetable[i] != NULL){
+			newas->pagetable[i] = kmalloc(MAX_PTE * sizeof(struct pte));
+			memset(newas->pagetable[i], 0, MAX_PTE * sizeof(struct pte));
+
+			for (int j = 0; j < MAX_PTE; j++){
+
+				// TODO Copy logic.
+
+			}
+		}
+	}
+
 
 	*ret = newas;
 	return 0;
