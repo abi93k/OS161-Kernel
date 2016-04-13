@@ -114,6 +114,20 @@ as_destroy(struct addrspace *as)
 	 //Run through all the regisona nd empty them
 	 as->heap_start=0;
 	 as->heap_end=0;
+
+	 //TODO remvoe page from physical memory
+
+	 int i;
+	 int region_size=(int)array_num(as->regions);
+
+	 for(i=0;i<region_size;i++)
+	 {
+	 	array_remove(as->regions,i);
+	 }
+
+	 // Is this required? 
+	 array_destroy(as->regions); 
+
 	  
 
 	kfree(as);
