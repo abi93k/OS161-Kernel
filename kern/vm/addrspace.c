@@ -111,7 +111,10 @@ as_destroy(struct addrspace *as)
 	 */
 
 	 //Run through all the pages and free them
-	 
+	 //Run through all the regisona nd empty them
+	 as->heap_start=0;
+	 as->heap_end=0;
+	  
 
 	kfree(as);
 }
@@ -143,6 +146,9 @@ as_deactivate(void)
 	 * anything. See proc.c for an explanation of why it (might)
 	 * be needed.
 	 */
+	
+	
+
 }
 
 /*
@@ -177,10 +183,22 @@ as_prepare_load(struct addrspace *as)
 {
 	/*
 	 * Write this.
-	 */
+	 */	
 
 	 //Run through the region's page table and change permission to readwrite
 
+	 //struct region *region_obj;
+	 //region_obj=as->regions;
+	 
+	 int i;
+	 int region_size=(int)array_num(as->regions);
+
+	 for(i=0;i<region_size;i++)
+	 {
+	 	as->regions[i]->permission= READ_WRITE;
+	 }
+
+	
 	(void)as;
 	return 0;
 }
@@ -194,6 +212,18 @@ as_complete_load(struct addrspace *as)
 	 //Run through the region's page table and change permission to original value
 	 //original value ?
 
+     //struct region *region_obj;
+	 //region_obj=as->regions;
+	 
+	 int i;
+	 int region_size=(int)array_num(as->regions);
+
+	 for(i=0;i<region_size;i++)
+	 {
+	 	as->regions[i]->permission= WRITE_ONLY;
+	 }
+
+	
 	(void)as;
 	return 0;
 }
