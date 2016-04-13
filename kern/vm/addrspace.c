@@ -41,6 +41,14 @@
  */
 
 struct addrspace *
+
+/* |||||||||||TODO|||||||||||
+	Step 1: Create address space object and check for null -DONE
+	Step 2: Assign all the structure elements to initial value -DONE
+	Step 3: Check if type cast is required for vaddr objects(heap_start,heap_end)
+		
+*/
+struct addrspace *
 as_create(void)
 {
 	struct addrspace *as;
@@ -53,6 +61,16 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
+
+	 //TODO - Add any initialization functions defined in the pte structure
+	 as->pagetable=NULL;
+
+	 //TODO - Add any initialization functions defined in the regions structure
+	 as->regions=NULL;
+
+	 as->heap_start=0;
+	 as->heap_end=0;
+
 
 	return as;
 }
@@ -77,12 +95,26 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
+
+
+/* |||||||||||TODO|||||||||||
+	Step 1: Free all present pages
+	Step 2: Free all swapped pages
+	
+		
+*/
 void
 as_destroy(struct addrspace *as)
 {
 	/*
 	 * Clean up as needed.
 	 */
+
+	 //Run through all the pages and free them
+	 //Run through all the regisona nd empty them
+	 as->heap_start=0;
+	 as->heap_end=0;
+	  
 
 	kfree(as);
 }
@@ -114,6 +146,9 @@ as_deactivate(void)
 	 * anything. See proc.c for an explanation of why it (might)
 	 * be needed.
 	 */
+	
+	
+
 }
 
 /*
@@ -148,8 +183,22 @@ as_prepare_load(struct addrspace *as)
 {
 	/*
 	 * Write this.
-	 */
+	 */	
 
+	 //Run through the region's page table and change permission to readwrite
+
+	 //struct region *region_obj;
+	 //region_obj=as->regions;
+	 
+	 int i;
+	 int region_size=(int)array_num(as->regions);
+
+	 for(i=0;i<region_size;i++)
+	 {
+	 	as->regions[i]->permission= READ_WRITE;
+	 }
+
+	
 	(void)as;
 	return 0;
 }
@@ -160,7 +209,21 @@ as_complete_load(struct addrspace *as)
 	/*
 	 * Write this.
 	 */
+	 //Run through the region's page table and change permission to original value
+	 //original value ?
 
+     //struct region *region_obj;
+	 //region_obj=as->regions;
+	 
+	 int i;
+	 int region_size=(int)array_num(as->regions);
+
+	 for(i=0;i<region_size;i++)
+	 {
+	 	as->regions[i]->permission= WRITE_ONLY;
+	 }
+
+	
 	(void)as;
 	return 0;
 }
@@ -176,6 +239,8 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 	/* Initial user-level stack pointer */
 	*stackptr = USERSTACK;
+
+	//Return USERSTACKTOP
 
 	return 0;
 }
