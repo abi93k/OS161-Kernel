@@ -77,7 +77,33 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	 * Write this.
 	 */
 
-	(void)old;
+	newas->heap_start = old->heap_start;
+	newas->heap_end = old->heap_end;
+
+	// copy regions
+
+	no_of_regions = array_num(old->regions);
+	for (i = 0; i < no_of_regions; i++) {
+		old_region = array_get(old->regions, i);
+		new_region = kmalloc(sizeof(struct region));
+		if (old_region == NULL || new_region == NULL) {
+			regions_cleanup(newas,no_of_regions);
+			return ENOMEM;
+		}
+
+		new_region->base = old_region->base;
+		new_region->size = old_region->size;
+		new_region->permission = old_region->permission;
+
+		errno = array_add(newas->regions, new_region, NULL);
+		if (errno) {
+			regions_cleanup(newas,no_of_regions);
+			return ENOMEM;
+		}
+	}
+
+	// copy page table
+
 
 	*ret = newas;
 	return 0;
@@ -128,7 +154,15 @@ as_activate(void)
 	 * Write this.
 	 */
 
+	int i, spl;
 
+	spl = splhigh();
+
+	for (i=0; i<NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+	
+	splx(spl);
 }
 
 void
@@ -139,6 +173,8 @@ as_deactivate(void)
 	 * anything. See proc.c for an explanation of why it (might)
 	 * be needed.
 	 */
+
+	 /* Not required */
 }
 
 /*
@@ -159,13 +195,30 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	 * Write this.
 	 */
 
-	(void)as;
-	(void)vaddr;
-	(void)memsize;
-	(void)readable;
-	(void)writeable;
-	(void)executable;
-	return ENOSYS;
+	struct region *region;
+
+	/* Align the region. First, the base... */
+	sz += vaddr & ~(vaddr_t)PAGE_FRAME;
+	vaddr &= PAGE_FRAME;
+
+	/* ...and now the length. */
+	sz = (sz + PAGE_SIZE - 1) & PAGE_FRAME;
+
+	region = kmalloc(sizeof(struct region));
+
+	if (region == NULL)
+		return ENOMEM;
+
+	region->base = vaddr;
+	region->size = sz;
+	region->permission = readable + writeable + executable;
+
+	array_add(as->as_regions, region, NULL);
+
+	as->heap_start = vaddr + sz;
+	as->heap_end = as->heap_start;
+
+	return 0;
 }
 
 int
@@ -212,5 +265,18 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 	*stackptr = USERSTACK;
 
 	return 0;
+}
+
+
+/* helper */
+
+void regions_cleanup(struct addrspace *as, int no_of_regions) {
+		struct * region;
+		for (i=0; i < no_of_regions; i++){
+
+			region = (struct region *)array_get(as->regions,i);
+			if (new_region != NULL)
+				kfree(region);
+			}
 }
 
