@@ -29,9 +29,9 @@
 
 #ifndef _ADDRSPACE_H_
 #define _ADDRSPACE_H_
-#define READONLY 0
-#define WRITE_ONLY 1
-#define READ_WRITE 2
+#define READ 0
+#define WRITE 1
+#define EXECUTE 2
 
 /*
  * Address space structure and operations.
@@ -48,6 +48,7 @@ struct region {
     vaddr_t base;
     size_t size;
     int permission;
+    int original_permission;
 };
 
 /*
@@ -139,6 +140,14 @@ int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);
  */
 
 int load_elf(struct vnode *v, vaddr_t *entrypoint);
+
+
+/*
+ * Helpers 
+ */
+void regions_destroy(struct addrspace *as);
+int as_check_region(struct addrspace *as, vaddr_t va);
+int regions_copy(struct addrspace *old, struct addrspace *new);
 
 
 #endif /* _ADDRSPACE_H_ */

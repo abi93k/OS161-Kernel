@@ -45,6 +45,8 @@ sys_fork(struct trapframe* tf, int *retval)
 {
 
 
+
+
 	struct proc *child_proc = proc_create_runprogram("child_process");
 	if(child_proc==NULL)
 		return ENOMEM;
@@ -54,7 +56,9 @@ sys_fork(struct trapframe* tf, int *retval)
 
 	for( int i=0; i < OPEN_MAX; i++) {
 		if( curproc->p_fdtable[i] != NULL  ) {
+			//lock_acquire(curproc -> p_fdtable[i]->lock);
 			curproc -> p_fdtable[i] -> reference_count ++;
+			//lock_release(curproc -> p_fdtable[i]->lock);
 			child_proc -> p_fdtable[i] = curproc -> p_fdtable[i];
 		}
 	}
@@ -89,7 +93,7 @@ sys_getpid(pid_t *pid)
 int 
 sys__exit(int exitcode)
 {
-	
+
 	if(proc_table[curproc->ppid]->exited==false) 
 	{
 		curproc->exit_code=_MKWAIT_EXIT(exitcode);
@@ -100,13 +104,16 @@ sys__exit(int exitcode)
 	{
 		proc_destroy(curproc);
 	}	
+
 	thread_exit();
+
 }
 
 
 int
 sys_waitpid(int pid, userptr_t status, int options, pid_t *retpid)
 {
+
 
 	if (status == NULL)
 		return 0;
@@ -147,13 +154,17 @@ sys_waitpid(int pid, userptr_t status, int options, pid_t *retpid)
 
 	result = copyout(&child_proc->exit_code, status, sizeof(int));
 
+	proc_destroy(child_proc); // Destroy child
+	proc_table[pid] = NULL;
+
+	
 	if(result)
 		return result;
 
+	
 	*retpid = pid;
 
-	proc_destroy(child_proc); // Destroy child
-	proc_table[pid] = NULL;
+
 	return 0;
 
 }
@@ -178,7 +189,6 @@ int sys_execv(char *program, char **args) {
 
 	if(args>=(char**)0x80000000)
 		return EFAULT;
-
 
 
 	int i = 0;

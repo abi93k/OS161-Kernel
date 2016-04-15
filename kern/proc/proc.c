@@ -49,6 +49,8 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <synch.h>
+#include <file_syscall.h>
+#include <vfs.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -199,6 +201,27 @@ proc_destroy(struct proc *proc)
 	/* Free file table*/
 	
 	/* Do not kfree file table entries. My children might be pointing to them */
+	for (int i = 0; i < OPEN_MAX; ++i)
+	{
+		if (proc->p_fdtable[i] != NULL)
+		{
+			//lock_acquire(proc -> p_fdtable[i]->lock);
+			proc->p_fdtable[i]->reference_count  -= 1;
+			//lock_release(proc -> p_fdtable[i]->lock);
+
+
+			if (proc->p_fdtable[i]->reference_count  == 0) 
+			{
+
+				vfs_close(proc->p_fdtable[i]->vn);
+				lock_destroy(proc->p_fdtable[i]->lock);
+
+				kfree(proc->p_fdtable[i]);
+			}
+			proc->p_fdtable[i] = NULL;
+
+		}
+	 }
 
 
 	proc_table[proc->pid] = NULL;
