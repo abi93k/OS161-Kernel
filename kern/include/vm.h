@@ -48,6 +48,7 @@
 
 #define PAGE_FRAME 0xfffff000   /* mask for getting page number from addr */
 
+
  /* Coremap */
 
 enum page_state
@@ -101,5 +102,6 @@ void vm_tlbshootdown(const struct tlbshootdown *);
 
 
 vaddr_t page_alloc(struct addrspace *as, vaddr_t va);
+void page_free(struct addrspace *as, paddr_t paddr);
 
 #endif /* _VM_H_ */

@@ -145,6 +145,9 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint);
 /*
  * Helpers 
  */
-void regions_cleanup(struct addrspace *as, int no_of_regions);
+void regions_destroy(struct addrspace *as);
+int as_check_region(struct addrspace *as, vaddr_t va);
+int regions_copy(struct addrspace *old, struct addrspace *new);
+
 
 #endif /* _ADDRSPACE_H_ */

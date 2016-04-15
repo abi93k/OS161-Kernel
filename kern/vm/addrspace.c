@@ -56,16 +56,23 @@ as_create(void)
 		return NULL;
 	}
 
-	/*
-	 * Initialize as needed.
-	 */
-
 	as->pagetable=pagetable_create();
+	if(as->pagetable == NULL) {
+		kfree(as);
+		return NULL;
+	}
+
 	as->regions=array_create();
+	if(as->regions == NULL) {
+		pagetable_destroy(as,as->pagetable);
+		kfree(as);
+		return NULL;
+	}
 	as->heap_start=0;
 	as->heap_end=0;
 
 	return as;
+
 }
 
 int
@@ -78,49 +85,45 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		return ENOMEM;
 	}
 
-	/*
-	 * Write this.
-	 */
-
 	newas->heap_start = old->heap_start;
 	newas->heap_end = old->heap_end;
 
-	// copy regions
+	int result = regions_copy(old,newas);
 
-	struct region * old_region;
-	struct region * new_region;
+	if(result)
+		return ENOMEM;
 
-	int no_of_regions = array_num(old->regions);
-	for (int i = 0; i < no_of_regions; i++) {
-		old_region = array_get(old->regions, i);
-		new_region = kmalloc(sizeof(struct region));
-		if (old_region == NULL || new_region == NULL) {
-			regions_cleanup(newas,no_of_regions);
-			return ENOMEM;
-		}
 
-		new_region->base = old_region->base;
-		new_region->size = old_region->size;
-		new_region->permission = old_region->permission;
-
-		int errno = array_add(newas->regions, new_region, NULL);
-		if (errno) {
-			regions_cleanup(newas,no_of_regions);
-			return ENOMEM;
-		}
-	}
-
-	// copy page table
+	struct pte *old_pte;
+	struct pte *new_pte;
 
 	for (int i = 0; i < MAX_PTE; i++){
-		if (old->pagetable[i] != NULL){
+		if (old->pagetable[i] != NULL) {
 			newas->pagetable[i] = kmalloc(MAX_PTE * sizeof(struct pte));
+			if(newas->pagetable[i] == NULL) {
+				regions_destroy(newas);
+    			kfree(newas);
+
+				return ENOMEM;
+			}
 			memset(newas->pagetable[i], 0, MAX_PTE * sizeof(struct pte));
 
 			for (int j = 0; j < MAX_PTE; j++){
+				
+				
+				old_pte = &old->pagetable[i][j];
+				new_pte = &newas->pagetable[i][j];
+				if(old_pte->paddr != 0) {
+					vaddr_t va = page_alloc(newas,0);
+					if(va == 0) {
 
-				// TODO Copy logic.
-
+						regions_destroy(newas);
+    					kfree(newas);
+						return ENOMEM;
+					}
+					new_pte->paddr = KVADDR_TO_PADDR(va);
+					memmove((void *)PADDR_TO_KVADDR(new_pte->paddr),(void *)PADDR_TO_KVADDR(old_pte->paddr), PAGE_SIZE);
+				}
 			}
 		}
 	}
@@ -137,23 +140,15 @@ as_destroy(struct addrspace *as)
 	 * Clean up as needed.
 	 */
 
-    // TODO Destroy page table.
 
-    int num_of_regions = array_num(as->regions);
-    struct region *region_ptr;
-
-    int i = num_of_regions - 1;
-
-    while (i >= 0){
-        region_ptr = array_get(as->regions, i);
-        kfree(region_ptr);
-        array_remove(as->regions, i);
-        i--;
-    }
+    regions_destroy(as);
 
     array_destroy(as->regions);
 
+    pagetable_destroy(as,as->pagetable);
+
     kfree(as);
+
 
 }
 
@@ -171,9 +166,6 @@ as_activate(void)
 		return;
 	}
 
-	/*
-	 * Write this.
-	 */
 
 	int i, spl;
 
@@ -182,7 +174,6 @@ as_activate(void)
 	for (i=0; i<NUM_TLB; i++) {
 		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
 	}
-	
 	splx(spl);
 }
 
@@ -194,8 +185,6 @@ as_deactivate(void)
 	 * anything. See proc.c for an explanation of why it (might)
 	 * be needed.
 	 */
-
-	 /* Not required */
 }
 
 /*
@@ -208,22 +197,22 @@ as_deactivate(void)
  * moment, these are ignored. When you write the VM system, you may
  * want to implement them.
  */
+
 int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 		 int readable, int writeable, int executable)
 {
-	/*
-	 * Write this.
-	 */
 
 	struct region *region;
 
+	/* From old addrspace */
 	/* Align the region. First, the base... */
 	memsize += vaddr & ~(vaddr_t)PAGE_FRAME;
 	vaddr &= PAGE_FRAME;
 
 	/* ...and now the length. */
 	memsize = (memsize + PAGE_SIZE - 1) & PAGE_FRAME;
+	/* End old addrspace */
 
 	region = kmalloc(sizeof(struct region));
 
@@ -238,23 +227,21 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 
 	as->heap_start = vaddr + memsize;
 	as->heap_end = as->heap_start;
-
+	
+	
 	return 0;
 }
 
 int
 as_prepare_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */	
-
 	 int num_of_regions=(int)array_num(as->regions);
 	 struct region * region_ptr;
 
 	 for(int i=0;i<num_of_regions;i++)
 	 {
 	 	region_ptr = (struct region *)array_get(as->regions,i);
+	 	region_ptr->original_permission = region_ptr->permission;
 	 	region_ptr->permission= READ | WRITE;
 	 }
 
@@ -264,29 +251,22 @@ as_prepare_load(struct addrspace *as)
 int
 as_complete_load(struct addrspace *as)
 {
-	/*
-	 * Write this.
-	 */
-	 
-	 int num_of_regions=(int)array_num(as->regions);
-	 struct region * region_ptr;
+	int num_of_regions=(int)array_num(as->regions);
+	struct region * region_ptr;
 
-	 for(int i=0;i<num_of_regions;i++)
-	 {
-	 	region_ptr = (struct region *)array_get(as->regions,i);
-	 	region_ptr->permission = region_ptr->original_permission;
-	 }
+	for(int i=0;i<num_of_regions;i++)
+	{
+		region_ptr = (struct region *)array_get(as->regions,i);
+		region_ptr->permission = region_ptr->original_permission;
+	}
 
+	(void)as;
 	return 0;
 }
 
 int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
-	/*
-	 * Write this.
-	 */
-
 	*stackptr = USERSTACK;
 
 	(void)as;
@@ -297,13 +277,53 @@ as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 
 /* helper */
 
-void regions_cleanup(struct addrspace *as, int no_of_regions) {
-		struct region *region_ptr;
-		for (int i=0; i < no_of_regions; i++){
+void regions_destroy(struct addrspace *as) {
+	int num_of_regions = array_num(as->regions);
 
-			region_ptr = (struct region *)array_get(as->regions,i);
-			if (region_ptr != NULL)
-				kfree(region_ptr);
-			}
+    struct region *region_ptr;
+
+    int i = num_of_regions - 1;
+
+    while (i >= 0){
+        region_ptr = array_get(as->regions, i);
+        kfree(region_ptr);
+        array_remove(as->regions, i);
+        i--;
+    }
 }
+
+int regions_copy(struct addrspace *old, struct addrspace *new) {
+
+	struct region * old_region;
+	struct region * new_region;
+
+	int no_of_regions = array_num(old->regions);
+	for (int i = 0; i < no_of_regions; i++) {
+		old_region = array_get(old->regions, i);
+		new_region = kmalloc(sizeof(struct region));
+		if (old_region == NULL || new_region == NULL) {
+			regions_destroy(new);
+			kfree(new);
+			return ENOMEM;
+		}
+
+		new_region->base = old_region->base;
+		new_region->size = old_region->size;
+		new_region->permission = old_region->permission;
+
+		int errno = array_add(new->regions, new_region, NULL);
+		if (errno) {
+			regions_destroy(new);
+			kfree(new);
+
+			return ENOMEM;
+		}
+	}
+
+	return 0;
+
+}
+
+
+
 
