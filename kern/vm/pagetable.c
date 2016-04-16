@@ -42,7 +42,7 @@ struct pte* pt_alloc_page(struct addrspace * as, vaddr_t vaddr)
 	uint32_t slt_index = vaddr >> 12 & 0x000003FF; // Second 10 bits are pointer into the SLT 
 
 	if(as->pagetable[tlt_index] == NULL) {
-		kprintf("%d",sizeof(struct pte));
+		//kprintf("%d",sizeof(struct pte));
 		as->pagetable[tlt_index] = kmalloc(MAX_PTE * sizeof(struct pte));
 		memset(as->pagetable[tlt_index], 0, MAX_PTE * sizeof(struct pte));
 	}
@@ -73,7 +73,6 @@ void pt_dealloc_page(struct addrspace *as, struct  pte *target) {
 
 	//struct pte *target = &as->pagetable[tlt_index][slt_index];
 
-	// If in memory, try to deallocate that segment and block until it's gone
 	if (target->paddr!=0) {
 		page_free(as,target->paddr);
 	}

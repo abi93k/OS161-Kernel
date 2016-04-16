@@ -121,7 +121,7 @@ free_kpages(vaddr_t addr)
     int chunk_size = coremap[index].chunk_size;
 
     for(i=index;i<index+chunk_size;i++) {
-    	bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
+    	//bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
 
     	coremap[i].state=FREE;
 
