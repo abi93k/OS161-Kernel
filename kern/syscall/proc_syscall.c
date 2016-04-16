@@ -391,7 +391,6 @@ int sys_execv(char *program, char **args) {
 int sys_sbrk(int increment, int *retval)
 {
 	struct addrspace *as_temp=curproc->p_addrspace;
-	kprintf("inside sbrk \n");
 	//TODO : Chekc for divisible by 4 
 	//TODO : Chekc for num pages
 
