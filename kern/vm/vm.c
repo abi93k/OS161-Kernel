@@ -78,6 +78,7 @@ alloc_kpages(unsigned npages)
 				}
 				else {
 					break;
+
 				}
 			}
 			if(available_pages == required_pages) {
@@ -185,7 +186,16 @@ vm_fault(int faulttype, vaddr_t faultaddress)
     int tlt_index = faultaddress >> 22;
     int slt_index = faultaddress >> 12 & 0x000003FF;
     
+    int permission = as_check_region(as, faultaddress);
+    
 
+    if (permission < 0 // check if not in region
+    	&& as_check_stack(as,faultaddress) // check if not in stack
+    	&& as_check_heap(as,faultaddress)) // check if not in heap
+        	return EFAULT;
+    
+    if(permission<0)
+    	permission = READ | WRITE;
 
     if (as->pagetable[tlt_index] == NULL) {
         as->pagetable[tlt_index] = kmalloc(MAX_PTE * sizeof(struct pte));

@@ -48,6 +48,11 @@
 
 #define PAGE_FRAME 0xfffff000   /* mask for getting page number from addr */
 
+#define STACKLIMIT 4*1024*1024
+#define USERSTACKBASE USERSPACETOP-STACKLIMIT
+
+
+
 
 /* Page states */
 
