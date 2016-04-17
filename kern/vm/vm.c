@@ -85,7 +85,7 @@ alloc_kpages(unsigned npages)
 				end = i;
     			bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
 
-				coremap[i].state = DIRTY;
+				coremap[i].state = FIXED;
 				coremap[i].as = NULL;
 				coremap[i].last_page = 0;
 
