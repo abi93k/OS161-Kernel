@@ -44,10 +44,8 @@ vm_bootstrap(void)
 
 	for (int i=0; i<no_of_coremap_entries;i++){
 
-		coremap[i].vm_addr = 0;
 		coremap[i].state = FREE;
-		coremap[i].chunk_size = -1;
-		coremap[i].owner = -1;
+		coremap[i].last_page = -1;
 		coremap[i].as = NULL;
 
 	}
@@ -62,6 +60,7 @@ alloc_kpages(unsigned npages)
 	int required_pages = (int) npages;
 	int available_pages;
 	int start = -1;
+	int end = -1;
 
 	spinlock_acquire(&coremap_lock);
 
@@ -69,8 +68,13 @@ alloc_kpages(unsigned npages)
 		available_pages = 0;
 		if(coremap[i].state == FREE) {
 			for(int j = i; j < i + required_pages; j++) {
-				if(coremap[j].state == FREE) {
-					available_pages ++;
+				if(j<no_of_coremap_entries) { // Hopefully fixes Bus Errors. 
+					if(coremap[j].state == FREE) {
+						available_pages ++;
+					}
+					else {
+						break;
+					}
 				}
 				else {
 					break;
@@ -78,11 +82,13 @@ alloc_kpages(unsigned npages)
 			}
 			if(available_pages == required_pages) {
 				start = i;
+				end = i;
     			bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
 
-				coremap[i].chunk_size = required_pages;
 				coremap[i].state = DIRTY;
 				coremap[i].as = NULL;
+				coremap[i].last_page = 0;
+
 
 				break;
 			}
@@ -95,13 +101,18 @@ alloc_kpages(unsigned npages)
 		return 0;
 	}
 	else {
-		for(int i = start+1; i < start + coremap[start].chunk_size; i++) {
+		for(int i = start+1; i < start + required_pages; i++) {
     		bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
 
 			coremap[i].state = DIRTY;
 			coremap[i].as = NULL;
+			coremap[i].last_page = 0;
+			end++;
+
 		}
 	}
+
+	coremap[end].last_page = 1;
 
 	coremap_used += PAGE_SIZE * required_pages;
 	spinlock_release(&coremap_lock);
@@ -114,20 +125,27 @@ void
 free_kpages(vaddr_t addr)
 {
     int i,index;
+    int number_of_pages_deallocated=0;
     paddr_t pa= KVADDR_TO_PADDR(addr);
     index=PADDR_TO_CM(pa);
 
     spinlock_acquire(&coremap_lock);
-    int chunk_size = coremap[index].chunk_size;
 
-    for(i=index;i<index+chunk_size;i++) {
+    for(i=index;i<no_of_coremap_entries;i++) {
     	//bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
+    	int backup_last_page = coremap[i].last_page;
+		coremap[i].state = FREE;
+		coremap[i].last_page = -1;
+		coremap[i].as = NULL;
+		
+		number_of_pages_deallocated++;
 
-    	coremap[i].state=FREE;
+		if(backup_last_page)
+			break;
 
     }
 
-    coremap_used -= (PAGE_SIZE * coremap[index].chunk_size);
+    coremap_used -= (PAGE_SIZE * number_of_pages_deallocated);
 
     spinlock_release(&coremap_lock);
 }
@@ -222,9 +240,8 @@ vaddr_t page_alloc(struct addrspace *as, vaddr_t vaddr) {
 
 		if(coremap[i].state == FREE) {
 			coremap[i].state = DIRTY;
-			coremap[i].chunk_size = 1;
+			coremap[i].last_page = 1;
 			coremap[i].as = as;
-			coremap[i].owner = curproc->pid;
 			
 			coremap_used += PAGE_SIZE;
 
@@ -243,26 +260,32 @@ vaddr_t page_alloc(struct addrspace *as, vaddr_t vaddr) {
 
 }
 
-void page_free(struct addrspace *as, paddr_t paddr) {
-
+void page_free(struct addrspace *as, paddr_t paddr) 
+{
+	(void)as;
     int i,index;
+    int number_of_pages_deallocated=0;
     index=PADDR_TO_CM(paddr);
 
     spinlock_acquire(&coremap_lock);
-    int chunk_size = coremap[index].chunk_size;
 
-    for(i=index;i<index+chunk_size;i++) {
+    for(i=index;i<no_of_coremap_entries;i++) {
+    	//bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
+    	int backup_last_page = coremap[i].last_page;
+		coremap[i].state = FREE;
+		coremap[i].last_page = -1;
+		coremap[i].as = NULL;
+		
+		number_of_pages_deallocated++;
 
-    	bzero((void *)PADDR_TO_KVADDR(CM_TO_PADDR(i)), PAGE_SIZE);
+		if(backup_last_page)
+			break;
 
-
-    	coremap[i].state=FREE;
     }
 
-    coremap_used -= (PAGE_SIZE * coremap[index].chunk_size);
+    coremap_used -= (PAGE_SIZE * number_of_pages_deallocated);
 
     spinlock_release(&coremap_lock);
-    (void)as;
 
 }
 

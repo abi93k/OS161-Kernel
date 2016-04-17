@@ -49,23 +49,22 @@
 #define PAGE_FRAME 0xfffff000   /* mask for getting page number from addr */
 
 
+/* Page states */
+
+#define FREE 0
+#define FIXED 1
+#define DIRTY 2
+#define CLEAN 3
+
  /* Coremap */
 
-enum page_state
-{
-	FREE,
-	FIXED,
-	DIRTY,
-	CLEAN
-};
+
 
 struct coremap_entry 
 {
-	vaddr_t vm_addr;		
 	struct addrspace *as;
-	enum page_state state;
-	int chunk_size;
-	pid_t owner;
+	int state : 2;
+	int last_page : 1;
 };
 
 struct coremap_entry* coremap;
