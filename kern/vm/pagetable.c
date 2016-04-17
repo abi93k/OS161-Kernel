@@ -44,7 +44,7 @@ struct pte* pt_alloc_page(struct addrspace * as, vaddr_t vaddr)
 	if(as->pagetable[tlt_index] == NULL) {
 		//kprintf("%d",sizeof(struct pte));
 		as->pagetable[tlt_index] = kmalloc(MAX_PTE * sizeof(struct pte));
-		memset(as->pagetable[tlt_index], 0, MAX_PTE * sizeof(struct pte));
+		//memset(as->pagetable[tlt_index], 0, MAX_PTE * sizeof(struct pte));
 	}
 
 	struct pte *target = &as->pagetable[tlt_index][slt_index];
