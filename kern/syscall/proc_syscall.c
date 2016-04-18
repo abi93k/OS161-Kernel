@@ -18,6 +18,7 @@
 #include <thread.h>
 #include <mips/trapframe.h>
 #include <kern/wait.h>
+#include <pagetable.h>
 
 
 
@@ -395,13 +396,33 @@ int sys_sbrk(intptr_t increment, int *retval)
 
     *retval = as->heap_end;
 
-    // Out of memory 
+    vaddr_t end = as->heap_end; 
 
     if(increment > 0 || (unsigned int)(increment*-1) <= as->heap_end - as->heap_start) { // Check for huge negatives
 
 
     	if (as->heap_end + increment < USERSTACKBASE) {
         	as->heap_end += increment;
+        	if(increment <0 ) { 
+        		increment = increment * -1;
+        		if(increment >=PAGE_SIZE) { // Check if we should free up!
+        			int num_of_pages = increment/PAGE_SIZE; // Number of pages to free up!
+        			for(int i=0;i<num_of_pages;i++) {
+        				end -= PAGE_SIZE;
+
+						uint32_t tlt_index = end >> 22; // First 10 bits are pointer into the TLT 
+						uint32_t slt_index = end >> 12 & 0x000003FF; // Second 10 bits are pointer into the SLT 
+
+						struct pte *target = &as->pagetable[tlt_index][slt_index];        				
+        				pt_dealloc_page(as,target);
+
+        			}
+
+
+        		}
+
+
+        	}
         	return 0;
     	}
     	else { // Huge positive. Heap overflow.
