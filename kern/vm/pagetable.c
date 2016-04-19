@@ -49,7 +49,7 @@ struct pte* pt_alloc_page(struct addrspace * as, vaddr_t vaddr)
 
 	struct pte *target = &as->pagetable[tlt_index][slt_index];
 
-	target -> in_memory = true;
+	target -> in_memory = 1;
 	vaddr_t va = page_alloc(as,vaddr);
 	if(va!=0) {
 		target->paddr = KVADDR_TO_PADDR(va);

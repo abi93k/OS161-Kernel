@@ -19,6 +19,8 @@
 #include <mips/trapframe.h>
 #include <kern/wait.h>
 #include <pagetable.h>
+#include <spl.h>
+#include <mips/tlb.h>
 
 
 
@@ -413,8 +415,20 @@ int sys_sbrk(intptr_t increment, int *retval)
 						uint32_t tlt_index = end >> 22; // First 10 bits are pointer into the TLT 
 						uint32_t slt_index = end >> 12 & 0x000003FF; // Second 10 bits are pointer into the SLT 
 
-						struct pte *target = &as->pagetable[tlt_index][slt_index];        				
+						struct pte *target = &as->pagetable[tlt_index][slt_index];
+
         				pt_dealloc_page(as,target);
+        				//page_free(as,target->paddr);
+						(void) target;   
+
+						int i, spl;
+
+						spl = splhigh();
+
+						for (i=0; i<NUM_TLB; i++) {
+							tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+						}
+						splx(spl);						     				
 
         			}
 

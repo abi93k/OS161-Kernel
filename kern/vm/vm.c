@@ -199,7 +199,6 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
     if (as->pagetable[tlt_index] == NULL) {
         as->pagetable[tlt_index] = kmalloc(MAX_PTE * sizeof(struct pte));
-        memset(as->pagetable[tlt_index], 0, MAX_PTE * sizeof(struct pte));
     }
 
 	target = &as->pagetable[tlt_index][slt_index];
@@ -219,6 +218,8 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
     spl = splhigh();
     int index;
+
+    // TODO permissions
 
     switch (faulttype) {
         case VM_FAULT_READ:
