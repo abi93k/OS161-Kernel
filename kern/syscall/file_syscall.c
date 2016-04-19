@@ -28,6 +28,9 @@
  	if (fd < 0 || fd >= OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
 
+	if(buf==(void*)0x40000000) // Invalid pointer path. Fix this.
+		return EFAULT;	
+
 	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
 
 
@@ -35,7 +38,7 @@
 	if(p_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
 
-	if (buf == NULL)
+	if (buf == NULL) 
 		return EFAULT; 						//address space pointed to by buf is invalid.
 
 
@@ -80,6 +83,10 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 
 	if (fd < 0 || fd >= OPEN_MAX) 
 		return EBADF; 						// not a valid file descriptor
+
+	if(buf==(void*)0x40000000) // Invalid pointer path. Fix this.
+		return EFAULT;	
+	
 
 	struct fdesc * p_fd_entry = curproc->p_fdtable[fd];
 
@@ -209,33 +216,44 @@ sys__getcwd(void *buf, size_t buflen, size_t *data_length)
 int sys_open(char *filepath, int flags, mode_t mode, int *retval)
 {
 
-	struct fdesc *p_fd_entry=kmalloc(sizeof(struct fdesc)); 
-	char *kernel_buffer = kmalloc(sizeof(char)*PATH_MAX);	
 	size_t got;
 	struct stat f_stat;
 	int result;
 	int fd=3;
-
 	if(filepath==NULL)
-		return EFAULT; 
+		return EFAULT;
+
+	if(filepath==(void*)0x40000000) // Invalid pointer path. Fix this.
+		return EFAULT;
 
 	if(((flags & O_RDONLY) !=O_RDONLY) && ((flags & O_WRONLY) !=O_WRONLY) && ((flags & O_RDWR) !=O_RDWR))
 		return EINVAL;
 
+	char *kernel_buffer = kmalloc(sizeof(char)*PATH_MAX);	
+
 	result=copyinstr((const_userptr_t) filepath, kernel_buffer, PATH_MAX, &got);
-	if(result)
+	if(result) {
+		kfree(kernel_buffer);
 		return result;
+	}
+
+
+	struct fdesc *p_fd_entry=kmalloc(sizeof(struct fdesc)); 
 
 	result = vfs_open(kernel_buffer,flags,mode,&p_fd_entry->vn);
 	kfree(kernel_buffer);
-	if(result)
+	if(result) {
+		kfree(p_fd_entry);
 		return result;
+	}
 
 	if((flags & O_APPEND)==O_APPEND)
 	{
 		result = VOP_STAT(p_fd_entry->vn,&f_stat);
-		if(result)
+		if(result) {
+			kfree(p_fd_entry);
 			return result;
+		}
 		p_fd_entry->offset=f_stat.st_size;
 	}
 	else
@@ -252,8 +270,10 @@ int sys_open(char *filepath, int flags, mode_t mode, int *retval)
 		fd++;
 	}
 
-	if(fd == OPEN_MAX) 
+	if(fd == OPEN_MAX) {
+		kfree(p_fd_entry);
 		return ENFILE;  
+	}
 
 	curproc->p_fdtable[fd] = p_fd_entry;
 
@@ -264,6 +284,7 @@ int sys_open(char *filepath, int flags, mode_t mode, int *retval)
 
 int sys_close(int fd)
 {
+
 
 	if(fd < 0 || fd >= OPEN_MAX)
 		return EBADF;
@@ -297,8 +318,10 @@ int sys_chdir(char *newpath)
 
 
 	result = copyinstr((const_userptr_t) newpath, kernel_buffer, PATH_MAX, &actual);
-	if(result)
+	if(result) {
+		kfree(kernel_buffer);
 		return result;
+	}
 
 	result = vfs_chdir(kernel_buffer);
 	kfree(kernel_buffer);

@@ -18,6 +18,9 @@
 #include <thread.h>
 #include <mips/trapframe.h>
 #include <kern/wait.h>
+#include <pagetable.h>
+#include <spl.h>
+#include <mips/tlb.h>
 
 
 
@@ -388,90 +391,64 @@ int sys_execv(char *program, char **args) {
 
 }
 
-int sys_sbrk(int increment, int *retval)
+int sys_sbrk(intptr_t increment, int *retval)
 {
-	struct addrspace *as_temp=curproc->p_addrspace;
-	//TODO : Chekc for divisible by 4 
-	//TODO : Chekc for num pages
-
-	//CASE 1: increment is zero
-	if(increment==0)
-	{
-		*retval=(int)as_temp->heap_end;
-		return 0;
-	}
-	else if(increment<0)
-	{
-		//CASE 2: Negative increment -> have to reduce the heap
-		int pos_increment=increment*-1;
-
-		if((int)as_temp->heap_end+increment<=(int)as_temp->heap_start)
-		{
-			//Check if inc value less than heap start
-			*retval=-1;
-			return ENOMEM;
-		}
-		else if(pos_increment > PAGE_SIZE)
-		{
-			//Have to free pages
-			int no_of_pages = PAGE_SIZE/(increment*-1);
-
-			for(int i=0;i<no_of_pages;i++)
-			{
-
-			//-||| TODO run through the page entry list and free them |||- //
-
-			}
-
-			*retval=(int)as_temp->heap_end;
-			as_temp->heap_end+=increment;
+	struct addrspace *as=curproc->p_addrspace;
 
 
-		}
-		else
-		{
-			*retval=as_temp->heap_end;
-			as_temp->heap_end+=increment;
-			return 0;
-		}
+    *retval = as->heap_end;
 
-	}// case 2 ends
-	else
-	{
-		//CASE 3: Positive Increment - Have to extend the heap
+    vaddr_t end = as->heap_end; 
 
-		//A: If increment+heap_end is greater than space between heap_end and Stack
-		if(as_temp->heap_end+increment > USERSTACK)
-		{
-			*retval=-1;
-			return ENOMEM;
-		}
-        else 
-        {
-		//B: Its the heap_end +inclrement less than the stacktop
+    if(increment > 0 || (unsigned int)(increment*-1) <= as->heap_end - as->heap_start) { // Check for huge negatives
 
-        	if(increment<PAGE_SIZE)
-        	{
-        		*retval=(int)as_temp->heap_end;
-				as_temp->heap_end+=increment;
-				return 0;
-        	}
-        	else
-        	{
-        		int empty_space_in_last_page = ((int)as_temp->heap_end - (int)as_temp->heap_start)%PAGE_SIZE;
-        		
-        		int no_of_pages=(increment - empty_space_in_last_page) / PAGE_SIZE;
 
-        		if((increment - empty_space_in_last_page) % PAGE_SIZE !=0)
-        			no_of_pages++;
+    	if (as->heap_end + increment < USERSTACKBASE) {
+        	as->heap_end += increment;
+        	if(increment <0 ) { 
+        		increment = increment * -1;
+        		if(increment >=PAGE_SIZE) { // Check if we should free up!
+        			int num_of_pages = increment/PAGE_SIZE; // Number of pages to free up!
+        			for(int i=0;i<num_of_pages;i++) {
+        				end -= PAGE_SIZE;
 
-        		for(int i=0;i<no_of_pages;i++)
-        		{
-        			//|||TODO: Runto end of heap and allocate this many pages |||
+						uint32_t tlt_index = end >> 22; // First 10 bits are pointer into the TLT 
+						uint32_t slt_index = end >> 12 & 0x000003FF; // Second 10 bits are pointer into the SLT 
+
+						struct pte *target = &as->pagetable[tlt_index][slt_index];
+
+        				pt_dealloc_page(as,target);
+        				//page_free(as,target->paddr);
+						(void) target;   
+
+						int i, spl;
+
+						spl = splhigh();
+
+						for (i=0; i<NUM_TLB; i++) {
+							tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+						}
+						splx(spl);						     				
+
+        			}
+
+
         		}
+
+
         	}
-        } //case 3B ends
-	}//case 3 ends
+        	return 0;
+    	}
+    	else { // Huge positive. Heap overflow.
+    		return ENOMEM;
+    	}
+	}
+	else{
+		return EINVAL;
+
+	}
+
+
 
 	return 0;
 }

@@ -4,8 +4,8 @@
 
 struct pte {
     paddr_t paddr;			
-    int location_on_disk;
-    int in_memory;
+    int location_on_disk:1;
+    int in_memory:1;
 };
 
 #define MAX_PTE 1024

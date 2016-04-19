@@ -29,9 +29,9 @@
 
 #ifndef _ADDRSPACE_H_
 #define _ADDRSPACE_H_
-#define READ 0
-#define WRITE 1
-#define EXECUTE 2
+#define READ 4
+#define WRITE 2
+#define EXECUTE 1
 
 /*
  * Address space structure and operations.
@@ -148,6 +148,8 @@ int load_elf(struct vnode *v, vaddr_t *entrypoint);
 void regions_destroy(struct addrspace *as);
 int as_check_region(struct addrspace *as, vaddr_t va);
 int regions_copy(struct addrspace *old, struct addrspace *new);
+int as_check_heap(struct addrspace *as, vaddr_t va);
+int as_check_stack(struct addrspace *as, vaddr_t va);
 
 
 #endif /* _ADDRSPACE_H_ */

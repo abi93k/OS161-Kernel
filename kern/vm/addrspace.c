@@ -325,5 +325,34 @@ int regions_copy(struct addrspace *old, struct addrspace *new) {
 }
 
 
+int
+as_check_region(struct addrspace *as, vaddr_t va)
+{
+	int i;
+	struct region *region_ptr;
+	int num_of_regions = array_num(as->regions);
+
+	for (i = 0; i < num_of_regions; i++){
+		region_ptr = array_get(as->regions, i);
+		if (va >= region_ptr->base && va < (region_ptr->base + region_ptr->size)){
+			return region_ptr->permission;
+		}
+	}
+	return -1;
+}
+
+int
+as_check_heap(struct addrspace *as, vaddr_t va)
+{
+	return (va < as->heap_start || va > as->heap_end);
+}
+
+int
+as_check_stack(struct addrspace *as, vaddr_t va) 
+{
+	(void)as;
+	return (va <= USERSTACKBASE || va > USERSTACK);
+}
+
 
 
