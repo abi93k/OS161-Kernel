@@ -11,7 +11,7 @@ int choose_victim(/*Add as necessary*/) {
 int swapout(/*Add as necessary*/) {
 	/* TODO Write this */
 
-	//Write a dirty page to disk.
+	//Write a dirty page to disk using disk_write.
 	//Return 0 on success
 	//Return 1 on failure
 }
@@ -19,7 +19,7 @@ int swapout(/*Add as necessary*/) {
 int swapin(/*Add as necessary*/) {
 	/* TODO Write this */
 
-	//Read a page from disk to physical memory.
+	//Read a page from disk to physical memory using disk_read.
 	//Mark relevant page table entry.
 	//Return 0 on success
 	//Return 1 on failure
@@ -40,6 +40,28 @@ int swap(/*Add as necessary*/) {
 
 	// Fill victim with new information.
 	// Increase coremao_used_bytes.
-	// cv_signal to continue vm_fault (cv_wait triggered when swapping starts) ?
+	// cv_signal to continue vm_fault (cv_wait triggered when swapping starts) ? Is this necessary ?
 
+}
+
+int disk_write(vaddr_t vaddr, int position) {
+	struct iovec iov;
+    struct uio u;
+    uio_kinit(&iov, &u, vaddr, PAGE_SIZE, PAGE_SIZE * position, UIO_WRITE);
+    int result = VOP_WRITE(disk,&u);
+    if(result)
+    	return result;
+
+    return 0;
+
+}
+int disk_read(vaddr_t vaddr, int position) {
+	struct iovec iov;
+    struct uio u;
+    uio_kinit(&iov, &u, vaddr, PAGE_SIZE, PAGE_SIZE * position, UIO_READ);
+    int result = VOP_READ(disk,&u);
+    if(result)
+    	return result;
+
+    return 0;
 }
