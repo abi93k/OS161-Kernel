@@ -230,6 +230,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
         case VM_FAULT_READONLY:
 
             tlblo |= TLBLO_DIRTY;
+            // TODO: Change physical page's state to DIRTY.
 
             index = tlb_probe(faultaddress & PAGE_FRAME, 0);
             tlb_write(tlbhi, tlblo, index);

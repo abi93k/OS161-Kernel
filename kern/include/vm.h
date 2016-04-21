@@ -68,6 +68,7 @@
 struct coremap_entry 
 {
 	struct addrspace *as;
+	vaddr_t vaddr;
 	int state : 2;
 	int last_page : 1;
 };
