@@ -1247,8 +1247,10 @@ ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
 	c = cpuarray_get(&allcpus, mapping->cpu);
 
 	ipi_tlbshootdown(c, mapping);
+	if(mapping->cpu != curcpu->c_number) {
 
-	//P(mapping->sem);
+		P(mapping->sem);
+	}
 	
 }
 
