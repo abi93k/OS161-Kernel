@@ -48,8 +48,8 @@ int swapout(int coremap_index) {
 
 	KASSERT(coremap[coremap_index].as!=NULL);
 	
-    struct pte* target = pte_get(coremap[coremap_index].as,vaddr);
-    //struct pte * target =  coremap[coremap_index].page; // O(1)
+    //struct pte* target = pte_get(coremap[coremap_index].as,vaddr);
+    struct pte * target =  coremap[coremap_index].page; // O(1)
 	short position = target -> location_on_disk;
 
 	paddr_t paddr = CM_TO_PADDR(coremap_index);		

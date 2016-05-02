@@ -127,8 +127,8 @@ alloc_kpages_swap(unsigned npages)
 			if(lock_as == NULL) {
 				panic("not supoosed to be null");
 			}
-			target = pte_get(lock_as,lock_vaddr);	
-			//target =  coremap[i].page; // O(1)
+			//target = pte_get(lock_as,lock_vaddr);	
+			target =  coremap[i].page; // O(1)
 			if(target == NULL) {
 				kprintf("\n %d \n",lock_vaddr);
 				kprintf("\n %p \n",lock_as);
@@ -485,8 +485,8 @@ vaddr_t page_alloc(struct addrspace *as, vaddr_t vaddr) {
     KASSERT(lock_as != NULL); // WHAT ?!
     KASSERT(lock_as->pagetable!=NULL);
 
-    struct pte* target = pte_get(lock_as,lock_vaddr);
-    //struct pte* target =  coremap[victim_index].page; // O(1)
+    //struct pte* target = pte_get(lock_as,lock_vaddr);
+    struct pte* target =  coremap[victim_index].page; // O(1)
     if(target == NULL) {
 		kprintf("\n %d \n",lock_vaddr);
 		kprintf("\n %d \n",(int)lock_as);
@@ -572,8 +572,8 @@ void MAKE_PAGE_AVAIL(int coremap_index,int previous_state) {
 		unsigned cpu = coremap[coremap_index].cpu;
 		ipi_tlbshootdown_allcpus(&(const struct tlbshootdown){vaddr, tlb_sem, cpu});
 
-		struct pte* target = pte_get(coremap[coremap_index].as,vaddr);
-		//struct pte* target =  coremap[coremap_index].page; // O(1)
+		//struct pte* target = pte_get(coremap[coremap_index].as,vaddr);
+		struct pte* target =  coremap[coremap_index].page; // O(1)
 		KASSERT(target!=NULL);
 
 		target->in_memory = 0;

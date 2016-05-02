@@ -62,7 +62,7 @@ struct lock *proc_table_lock;
 /*
  * Create a proc structure.
  */
-static
+static 
 struct proc *
 proc_create(const char *name)
 {
@@ -349,7 +349,7 @@ proc_remthread(struct thread *t)
 	KASSERT(proc->p_numthreads > 0);
 	proc->p_numthreads--;
 	spinlock_release(&proc->p_lock);
-
+	
 	spl = splhigh();
 	t->t_proc = NULL;
 	splx(spl);
