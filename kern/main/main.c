@@ -50,6 +50,7 @@
 #include <test.h>
 #include <kern/test161.h>
 #include <version.h>
+#include <swap.h>
 #include "autoconf.h"  // for pseudoconfig
 
 
@@ -134,6 +135,7 @@ boot(void)
 	vfs_setbootfs("emu0");
 
 	kheap_nextgeneration();
+	swapspace_bootstrap();
 
 	/*
 	 * Make sure various things aren't screwed up.

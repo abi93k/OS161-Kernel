@@ -68,10 +68,15 @@ struct addrspace {
         size_t as_npages2;
         paddr_t as_stackpbase;
 #else
-        struct pte** pagetable;
+        //struct pte** pagetable;
         struct array *regions;
         vaddr_t heap_start;
         vaddr_t heap_end;
+        //struct lock **pt_locks;
+        struct array *pagetable;
+
+
+
 #endif
 };
 
@@ -150,6 +155,10 @@ int as_check_region(struct addrspace *as, vaddr_t va);
 int regions_copy(struct addrspace *old, struct addrspace *new);
 int as_check_heap(struct addrspace *as, vaddr_t va);
 int as_check_stack(struct addrspace *as, vaddr_t va);
+
+
+char page_buffer[PAGE_SIZE];
+
 
 
 #endif /* _ADDRSPACE_H_ */

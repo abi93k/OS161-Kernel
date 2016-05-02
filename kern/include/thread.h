@@ -40,6 +40,7 @@
 #include <spinlock.h>
 #include <threadlist.h>
 #include <limits.h>
+#include <cpu.h>
 
 struct cpu;
 
@@ -184,4 +185,5 @@ void thread_consider_migration(void);
 extern unsigned thread_count;
 void thread_wait_for_count(unsigned);
 
+void ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping);
 #endif /* _THREAD_H_ */

@@ -1235,3 +1235,41 @@ void thread_wait_for_count(unsigned tc)
 	}
 	spinlock_release(&thread_count_lock);
 }
+
+void
+ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
+{
+	struct cpu *c;
+	//if( mapping->cpu == curcpu->c_number) {
+	//	vm_tlbflush(mapping->target);
+	//	return;
+	//}
+	c = cpuarray_get(&allcpus, mapping->cpu);
+
+	ipi_tlbshootdown(c, mapping);
+
+	//P(mapping->sem);
+	
+}
+
+
+
+/*
+void
+ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
+{
+	struct cpu *c;
+	unsigned i, numcpus;
+
+	numcpus = cpuarray_num(&allcpus);
+	for (i = 0; i < numcpus; i++) {
+		c = cpuarray_get(&allcpus, i);
+		ipi_tlbshootdown(c, mapping);
+	}
+	for (i = 0; i < numcpus; i++) {
+		P(mapping->sem);
+	}
+}
+*/
+
+

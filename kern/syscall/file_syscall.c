@@ -38,8 +38,8 @@
 	if(p_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
 
-	if (buf == NULL) 
-		return EFAULT; 						//address space pointed to by buf is invalid.
+	//if (buf == NULL) 
+	//	return EFAULT; 						//address space pointed to by buf is invalid.
 
 
 	lock_acquire(p_fd_entry->lock);
@@ -93,8 +93,8 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *bytes_written)
 	if(p_fd_entry == NULL)
 		return EBADF; 						// not a valid file descriptor
 
-	if (buf == NULL)
-		return EFAULT; 						//address space pointed to by buf is invalid.
+	//if (buf == NULL)
+	//	return EFAULT; 						//address space pointed to by buf is invalid.
 
 
 	lock_acquire(p_fd_entry->lock);

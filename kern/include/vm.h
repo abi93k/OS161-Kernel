@@ -60,6 +60,7 @@
 #define FIXED 1
 #define DIRTY 2
 #define CLEAN 3
+#define VICTIM 4
 
  /* Coremap */
 
@@ -69,12 +70,16 @@ struct coremap_entry
 {
 	struct addrspace *as;
 	vaddr_t vaddr;
-	int state : 2;
-	int last_page : 1;
+	int state;
+	int last_page;
+	unsigned cpu;
+	int pinned;
+	struct pte* page; // O(1) Eviction
 };
 
 struct coremap_entry* coremap;
 struct spinlock coremap_lock;
+struct lock * fault_lock;
 
 uint32_t no_of_physical_pages;
 uint32_t coremap_used;
@@ -92,6 +97,8 @@ int vm_fault(int faulttype, vaddr_t faultaddress);
 
 /* Allocate/free kernel heap pages (called by kmalloc/kfree) */
 vaddr_t alloc_kpages(unsigned npages);
+vaddr_t alloc_kpages_noswap(unsigned npages);
+vaddr_t alloc_kpages_swap(unsigned npages);
 void free_kpages(vaddr_t addr);
 
 /*
@@ -104,9 +111,14 @@ unsigned int coremap_used_bytes(void);
 /* TLB shootdown handling called from interprocessor_interrupt */
 void vm_tlbshootdown_all(void);
 void vm_tlbshootdown(const struct tlbshootdown *);
+void vm_tlbflush_all(void);
+void vm_tlbflush(vaddr_t target);
+
 
 
 vaddr_t page_alloc(struct addrspace *as, vaddr_t va);
 void page_free(struct addrspace *as, paddr_t paddr);
+void MAKE_PAGE_AVAIL(int coremap_index,int previous_state);
+bool alloc_condition(int i);
 
 #endif /* _VM_H_ */

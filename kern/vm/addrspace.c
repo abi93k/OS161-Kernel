@@ -37,6 +37,7 @@
 #include <spl.h>
 #include <mips/tlb.h>
 #include <pagetable.h>
+#include <swap.h>
 
 
 /*
@@ -56,7 +57,8 @@ as_create(void)
 		return NULL;
 	}
 
-	as->pagetable=pagetable_create();
+
+	as->pagetable=array_create();
 	if(as->pagetable == NULL) {
 		kfree(as);
 		return NULL;
@@ -64,7 +66,7 @@ as_create(void)
 
 	as->regions=array_create();
 	if(as->regions == NULL) {
-		pagetable_destroy(as,as->pagetable);
+		array_destroy(as->pagetable);
 		kfree(as);
 		return NULL;
 	}
@@ -94,39 +96,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 		return ENOMEM;
 
 
-	struct pte *old_pte;
-	struct pte *new_pte;
+	result = pagetable_copy(old,newas);
 
-	for (int i = 0; i < MAX_PTE; i++){
-		if (old->pagetable[i] != NULL) {
-			newas->pagetable[i] = kmalloc(MAX_PTE * sizeof(struct pte));
-			if(newas->pagetable[i] == NULL) {
-				regions_destroy(newas);
-    			kfree(newas);
-
-				return ENOMEM;
-			}
-			memset(newas->pagetable[i], 0, MAX_PTE * sizeof(struct pte));
-
-			for (int j = 0; j < MAX_PTE; j++){
-				
-				
-				old_pte = &old->pagetable[i][j];
-				new_pte = &newas->pagetable[i][j];
-				if(old_pte->paddr != 0) {
-					vaddr_t va = page_alloc(newas,0);
-					if(va == 0) {
-
-						regions_destroy(newas);
-    					kfree(newas);
-						return ENOMEM;
-					}
-					new_pte->paddr = KVADDR_TO_PADDR(va);
-					memmove((void *)PADDR_TO_KVADDR(new_pte->paddr),(void *)PADDR_TO_KVADDR(old_pte->paddr), PAGE_SIZE);
-				}
-			}
-		}
-	}
+	if(result)
+		return ENOMEM;
 
 
 	*ret = newas;
@@ -140,12 +113,11 @@ as_destroy(struct addrspace *as)
 	 * Clean up as needed.
 	 */
 
-
     regions_destroy(as);
 
     array_destroy(as->regions);
 
-    pagetable_destroy(as,as->pagetable);
+    pagetable_destroy(as);
 
     kfree(as);
 
@@ -323,6 +295,9 @@ int regions_copy(struct addrspace *old, struct addrspace *new) {
 	return 0;
 
 }
+
+
+
 
 
 int

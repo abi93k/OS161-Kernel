@@ -54,7 +54,9 @@ sys_fork(struct trapframe* tf, int *retval)
 	if(child_proc==NULL)
 		return ENOMEM;
 	
-	as_copy(curproc->p_addrspace, &child_proc->p_addrspace);
+	int res = as_copy(curproc->p_addrspace, &child_proc->p_addrspace);
+	if(res)
+		return res;
 
 
 	for( int i=0; i < OPEN_MAX; i++) {
@@ -101,6 +103,8 @@ sys__exit(int exitcode)
 	{
 		curproc->exit_code=_MKWAIT_EXIT(exitcode);
 		curproc->exited=true;
+		//proc_remthread(curthread);
+
 		V(curproc->exit_sem);
 	}
 	else // My parent has exited, I'll just kill myself.
@@ -412,14 +416,25 @@ int sys_sbrk(intptr_t increment, int *retval)
         			for(int i=0;i<num_of_pages;i++) {
         				end -= PAGE_SIZE;
 
-						uint32_t tlt_index = end >> 22; // First 10 bits are pointer into the TLT 
-						uint32_t slt_index = end >> 12 & 0x000003FF; // Second 10 bits are pointer into the SLT 
+						int num_of_ptes = array_num(as->pagetable);        				
 
-						struct pte *target = &as->pagetable[tlt_index][slt_index];
+						for(int i = num_of_ptes -1 ; i >= 0; i--) {
+							struct pte* target = array_get(as->pagetable, i);
+        					if(target->vaddr == (end & PAGE_FRAME)) {
+        						pt_dealloc_page(as,target);
+        						lock_destroy(target->pte_lock);
+        						kfree(target);
 
-        				pt_dealloc_page(as,target);
+        						array_remove(as->pagetable,i);
+        					}
+        				}
+						//struct pte *target = pte_get(as,end & PAGE_FRAME);
+
+						//if(target!=NULL) {
+						//	pt_dealloc_page(as,target);
+						//}
         				//page_free(as,target->paddr);
-						(void) target;   
+						//(void) target;   
 
 						int i, spl;
 
