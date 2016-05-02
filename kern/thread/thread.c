@@ -1254,22 +1254,6 @@ ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
 
 
 
-/*
-void
-ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
-{
-	struct cpu *c;
-	unsigned i, numcpus;
 
-	numcpus = cpuarray_num(&allcpus);
-	for (i = 0; i < numcpus; i++) {
-		c = cpuarray_get(&allcpus, i);
-		ipi_tlbshootdown(c, mapping);
-	}
-	for (i = 0; i < numcpus; i++) {
-		P(mapping->sem);
-	}
-}
-*/
 
 
