@@ -409,18 +409,19 @@ int sys_sbrk(intptr_t increment, int *retval)
 
     	if (as->heap_end + increment < USERSTACKBASE) {
         	as->heap_end += increment;
+        	vaddr_t start = as->heap_end;
         	if(increment <0 ) { 
         		increment = increment * -1;
         		if(increment >=PAGE_SIZE) { // Check if we should free up!
-        			int num_of_pages = increment/PAGE_SIZE; // Number of pages to free up!
-        			for(int i=0;i<num_of_pages;i++) {
-        				end -= PAGE_SIZE;
+        			//int num_of_pages = increment/PAGE_SIZE; // Number of pages to free up!
+        			//for(int i=0;i<num_of_pages;i++) {
+        				//end -= PAGE_SIZE;
 
 						int num_of_ptes = array_num(as->pagetable);        				
 
-						for(int i = num_of_ptes -1 ; i >= 0; i--) {
+						for(int i = num_of_ptes - 1 ; i >= 0; i--) {
 							struct pte* target = array_get(as->pagetable, i);
-        					if(target->vaddr == (end & PAGE_FRAME)) {
+        					if(target->vaddr >= start && target->vaddr <= end) {
         						pt_dealloc_page(as,target);
         						lock_destroy(target->pte_lock);
         						kfree(target);
@@ -445,7 +446,7 @@ int sys_sbrk(intptr_t increment, int *retval)
 						}
 						splx(spl);						     				
 
-        			}
+        			//}
 
 
         		}

@@ -398,7 +398,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
     /* Adding CPU index to corresponding TLB entry */
 
     coremap[PADDR_TO_CM(target->paddr)].cpu = curcpu->c_number;    
-    //coremap[PADDR_TO_CM(target->paddr)].page = target;    
+    coremap[PADDR_TO_CM(target->paddr)].page = target;    
     int index;
 
     spl = splhigh();

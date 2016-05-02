@@ -44,8 +44,9 @@ struct pte* pt_load_page(struct addrspace * as, vaddr_t vaddr)
 	KASSERT(va!=0);
 
 	target->paddr = KVADDR_TO_PADDR(va);
-	coremap[PADDR_TO_CM(target->paddr)].state = CLEAN; // Swapped in pages are clean!
 	coremap[PADDR_TO_CM(target->paddr)].page = target;    
+	
+	coremap[PADDR_TO_CM(target->paddr)].state = CLEAN; // Swapped in pages are clean!
 	int result = swapin(target->paddr,target->location_on_disk);
 	(void)result;
 	target -> in_memory = 1;
@@ -195,8 +196,9 @@ pt_alloc_page(struct addrspace *as, vaddr_t va)
 	}
 	target->in_memory = 1;
 	target->paddr = KVADDR_TO_PADDR(va1);	
-	coremap[PADDR_TO_CM(target->paddr)].state = DIRTY; // Allocated pages are clean!	
 	coremap[PADDR_TO_CM(target->paddr)].page = target;    
+
+	coremap[PADDR_TO_CM(target->paddr)].state = DIRTY; // Allocated pages are clean!	
 
 
 
