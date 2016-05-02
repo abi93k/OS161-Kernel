@@ -158,6 +158,7 @@ int as_check_stack(struct addrspace *as, vaddr_t va);
 
 
 char page_buffer[PAGE_SIZE];
+struct lock* page_buffer_lock;
 
 
 

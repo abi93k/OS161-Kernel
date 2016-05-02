@@ -56,6 +56,8 @@ vm_bootstrap(void)
 
 	}
 
+	page_buffer_lock = lock_create("page_buffer_lock");
+
 }
 
 /* Allocate/free some kernel-space virtual pages */

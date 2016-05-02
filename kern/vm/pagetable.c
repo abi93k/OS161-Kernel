@@ -246,9 +246,11 @@ int pagetable_copy(struct addrspace *old, struct addrspace *new) {
 
 		new_pte->location_on_disk = allocate_disk_index();
 		if(old_pte->in_memory == 0 ) {
+			lock_acquire(page_buffer_lock);
 			int result = disk_read((vaddr_t)page_buffer,old_pte->location_on_disk);
 			(void)result;
 			disk_write((vaddr_t)page_buffer,new_pte->location_on_disk);
+			lock_release(page_buffer_lock);
 
 
 		}
