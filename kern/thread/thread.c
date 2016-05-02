@@ -1152,7 +1152,7 @@ ipi_broadcast(int code)
 		if (c != curcpu->c_self) {
 			ipi_send(c, code);
 		}
-	}
+	} 
 }
 
 void
@@ -1244,13 +1244,21 @@ ipi_tlbshootdown_allcpus(const struct tlbshootdown *mapping)
 	//	vm_tlbflush(mapping->target);
 	//	return;
 	//}
+
 	c = cpuarray_get(&allcpus, mapping->cpu);
 
-	ipi_tlbshootdown(c, mapping);
-	if(mapping->cpu != curcpu->c_number) {
-
-		P(mapping->sem);
+	if(c == NULL)
+		panic("cpu does not exist");
+	if(c==curcpu) {
+		vm_tlbshootdown(mapping);
 	}
+	else {
+		ipi_tlbshootdown(c, mapping);
+	}
+	//if(mapping->cpu != curcpu->c_number) {
+
+	//	P(mapping->sem);
+	//}
 	
 }
 
