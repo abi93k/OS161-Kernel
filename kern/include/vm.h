@@ -52,6 +52,7 @@
 #define USERSTACKBASE USERSPACETOP-STACKLIMIT
 
 
+#define MAX_TIME 9223372036854775807
 
 
 /* Page states */
@@ -75,7 +76,9 @@ struct coremap_entry
 	unsigned cpu;
 	int pinned;
 	struct pte* page; // O(1) Eviction
+	int accessed;
 };
+int clock_hand;
 
 struct coremap_entry* coremap;
 struct spinlock coremap_lock;

@@ -52,11 +52,13 @@ vm_bootstrap(void)
 		coremap[i].cpu = -1;
 		coremap[i].pinned = 0;
 		coremap[i].page = NULL;
+		coremap[i].accessed = 0;
 
 
 	}
 
 	page_buffer_lock = lock_create("page_buffer_lock");
+	clock_hand = 0;
 
 }
 
@@ -281,6 +283,8 @@ free_kpages(vaddr_t addr)
 		coremap[i].vaddr = 0;
 		coremap[i].cpu = -1;
 		coremap[i].pinned = 0;
+		coremap[i].page = NULL;
+		coremap[i].accessed = 0;
 
 		
 		number_of_pages_deallocated++;
@@ -546,6 +550,7 @@ void page_free(struct addrspace *as, paddr_t paddr)
 		coremap[i].cpu = -1;
 		coremap[i].pinned = 0;
 		coremap[i].page = NULL;
+		coremap[i].accessed = 0;
 
 
 		

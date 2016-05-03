@@ -18,25 +18,74 @@
 #include <kern/fcntl.h>
 #include <stat.h>
 #include <cpu.h>
+#include <clock.h>
 
 int choose_victim(/*Add as necessary*/) {
+    //time_t seconds = MAX_TIME;
+    //uint32_t nanoseconds = 0;
     if(swap_enabled == false)
         panic("choose_victim: swapping not enabled");
 
-    int i = random() % no_of_coremap_entries;
-    while (true) {
-        if (coremap[i].state==FIXED || coremap[i].state==VICTIM || coremap[i].pinned==1){
-            i = (i + 1) % no_of_coremap_entries;
-            continue;
-        } else {
-        	KASSERT(coremap[i].state!=FIXED);
-        	KASSERT(coremap[i].state!=VICTIM);
+    /* LRU */
+
+    while(1) {
+        if(coremap[clock_hand].page!=NULL) {
+
+            if (coremap[clock_hand].state==FIXED || coremap[clock_hand].state==VICTIM || coremap[clock_hand].pinned==1){
+                clock_hand = (clock_hand+1)%no_of_coremap_entries;
+                continue;
+            }    
+
+            if(coremap[clock_hand].accessed == 1 ) {
+                coremap[clock_hand].accessed = 0;
+                clock_hand = (clock_hand+1)%no_of_coremap_entries;
+            }
+            else {
+                KASSERT(coremap[clock_hand].state!=FIXED);
+                KASSERT(coremap[clock_hand].state!=VICTIM);
+                return clock_hand;
+            }
+        }
+
+        clock_hand = (clock_hand+1)%no_of_coremap_entries;
+
+    }
+    /*
+    int victim = -1;
+
+    for (int i =0; i<no_of_coremap_entries;i++) {
+        if(coremap[i].state == FREE) {
             return i;
         }
+        if (coremap[i].state==FIXED || coremap[i].state==VICTIM || coremap[i].pinned==1){
+            
+            continue;
+        } 
+        else {
+            if(coremap[i].seconds<seconds) {
+                seconds = coremap[i].seconds;
+                nanoseconds = coremap[i].nanoseconds;
+                victim = i;
+                  
+            }
+            else if(coremap[i].seconds==seconds) {
+                if(coremap[i].nanoseconds<nanoseconds) {
+                    seconds = coremap[i].seconds;
+                    nanoseconds = coremap[i].nanoseconds;
+                    victim = i;
+                }
+            }
+
+        }
     }
+    KASSERT(coremap[victim].state!=FIXED);
+    KASSERT(coremap[victim].state!=VICTIM);
+    return victim;
+    */
 }
 
 int swapout(int coremap_index) {
+
     if(swap_enabled == false)
         panic("swapout: swapping not enabled");    
 
@@ -57,7 +106,6 @@ int swapout(int coremap_index) {
 	int result = disk_write(PADDR_TO_KVADDR(paddr),position);
     target->in_memory = 0;
 	target->paddr = 1; // Lousy hack.
-
 
 
 	(void)result;
