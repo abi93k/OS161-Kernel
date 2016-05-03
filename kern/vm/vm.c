@@ -403,6 +403,7 @@ vm_fault(int faulttype, vaddr_t faultaddress)
 
     coremap[PADDR_TO_CM(target->paddr)].cpu = curcpu->c_number;    
     coremap[PADDR_TO_CM(target->paddr)].page = target;    
+    coremap[PADDR_TO_CM(target->paddr)].accessed = 1;    
     int index;
 
     spl = splhigh();
